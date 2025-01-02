@@ -61,11 +61,24 @@ func pipe(dst, src net.Conn, send bool) {
 	}
 }
 
+const COM_QUERY = byte(0x03)
+
 func intercept(src, dst net.Conn) {
 	buffer := make([]byte, 4096)
 
 	for {
 		n, _ := src.Read(buffer)
+		if n > 5 {
+			switch buffer[4] {
+			case COM_QUERY:
+				clientQuery := string(buffer[5:n])
+				fmt.Printf("client query: %s\n", clientQuery)
+
+				dst.Write([]byte(clientQuery))
+				continue
+			}
+
+		}
 		dst.Write(buffer[0:n])
 	}
 }
