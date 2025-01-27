@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-mysql-org/go-mysql/client"
 	"io"
 	"log"
 	"net"
@@ -9,11 +10,15 @@ import (
 )
 
 func main() {
-	// proxy listens on port 3307
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	pass := os.Getenv("DB_PASS")
 	proxy, err := net.Listen("tcp", ":3307")
 	if err != nil {
 		log.Fatalf("failed to start proxy: %s", err.Error())
 	}
+	fmt.Printf("Listening on localhost%d", 3307)
 	for {
 		conn, err := proxy.Accept()
 
