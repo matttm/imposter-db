@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-mysql-org/go-mysql/client"
+	"github.com/go-mysql-org/go-mysql/server"
 	"io"
 	"log"
 	"net"
@@ -10,10 +10,7 @@ import (
 )
 
 func main() {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	pass := os.Getenv("DB_PASS")
+	InitializeProxy()
 	proxy, err := net.Listen("tcp", ":3307")
 	if err != nil {
 		log.Fatalf("failed to start proxy: %s", err.Error())
@@ -27,63 +24,7 @@ func main() {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
 
-		go transport(conn)
-	}
-}
-func transport(conn net.Conn) {
-	defer conn.Close()
-
-	mysqlAddr := fmt.Sprintf("%s:%s", os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PORT"))
-	mysqlConn, err := net.Dial("tcp", mysqlAddr)
-	if err != nil {
-		log.Printf("failed to connect to mysql: %s", err.Error())
-		return
-	}
-
-	readChan := make(chan int64)
-	writeChan := make(chan int64)
-	var readBytes, writeBytes int64
-
-	// from proxy to mysql
-	go pipe(mysqlConn, conn, true)
-	// from mysql to proxy
-	go pipe(conn, mysqlConn, false)
-
-	readBytes = <-readChan
-	writeBytes = <-writeChan
-
-	log.Printf("connection closed. read bytes: %d, write bytes: %d", readBytes, writeBytes)
-}
-
-func pipe(dst, src net.Conn, send bool) {
-	if send {
-		intercept(src, dst)
-	}
-
-	_, err := io.Copy(dst, src)
-	if err != nil {
-		log.Printf("connection error: %s", err.Error())
 	}
 }
 
 const COM_QUERY = byte(0x03)
-
-func intercept(src, dst net.Conn) {
-	buffer := make([]byte, 4096)
-
-	for {
-		n, _ := src.Read(buffer)
-		if n > 5 {
-			switch buffer[4] {
-			case COM_QUERY:
-				clientQuery := string(buffer[5:n])
-				fmt.Printf("client query: %s\n", clientQuery)
-
-				dst.Write([]byte(clientQuery))
-				continue
-			}
-
-		}
-		dst.Write(buffer[0:n])
-	}
-}

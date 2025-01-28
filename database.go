@@ -1,23 +1,29 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
+	"net"
 	"os"
 
-	"github.com/go-mysql-org/go-mysql/client"
+	"github.com/go-mysql-org/go-mysql/server"
 )
 
-var conn *client.Conn
+var conn *server.Conn
 
-func InitializeDatabase() {
+//	type ServerConfig struct {
+//	    Host     string `env:"DB_HOST"`
+//	    Port     int    `env:"DB_PORT"`
+//	    User     string `env:"DB_USER"`
+//	    Password string `env:"DB_PASSWORD"`
+//	    Database string `env:"DB_DATABASE"`
+//	}
+func InitializeProxy(c net.Conn) {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASS")
-	// TODO: ADD VALIDATION
-	_conn, err := client.Connect(fmt.Sprintf("%s:%s", host, port), user, pass, "ACO_MS_DB")
+
+	_conn, err := server.NewConn(c, user, pass, server.EmptyHandler{})
 	if err != nil {
 		panic(err)
 	}
@@ -28,11 +34,11 @@ func InitializeDatabase() {
 	conn = _conn
 }
 
-func CloseDB() error {
-	return conn.Close()
+func CloseDB() {
+	conn.Close()
 }
 
-func GetDatabase() *client.Conn {
+func GetDatabase() *server.Conn {
 	if conn == nil {
 		log.Fatalf("Error: database not initialized")
 	}
