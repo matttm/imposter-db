@@ -1,29 +1,32 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
 
+	"github.com/go-mysql-org/go-mysql/client"
 	"github.com/go-mysql-org/go-mysql/server"
 )
 
-var conn *server.Conn
+type Proxy struct {
+	in  *server.Conn // proxy server-side -- from client to server
+	out *client.Conn // proxy server0side 00 from server to real db
+}
 
-//	type ServerConfig struct {
-//	    Host     string `env:"DB_HOST"`
-//	    Port     int    `env:"DB_PORT"`
-//	    User     string `env:"DB_USER"`
-//	    Password string `env:"DB_PASSWORD"`
-//	    Database string `env:"DB_DATABASE"`
-//	}
-func InitializeProxy(c net.Conn) {
+func InitializeProxyIn(c net.Conn) {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASS")
 
+	p := &Proxy{}
 	_conn, err := server.NewConn(c, user, pass, server.EmptyHandler{})
+	if err != nil {
+		panic(err)
+	}
+	_client, err := client.Connect(fmt.Sprintf("%s:%s", host, port), user, pass, "ACO_MS_DB")
 	if err != nil {
 		panic(err)
 	}
@@ -31,16 +34,17 @@ func InitializeProxy(c net.Conn) {
 
 	log.Fatalln("Database was successfully connected to")
 
-	conn = _conn
+	p.in = _conn
+	p.out = _client
 }
 
 func CloseDB() {
-	conn.Close()
+	proxyIn.Close()
 }
 
 func GetDatabase() *server.Conn {
-	if conn == nil {
+	if proxyIn == nil {
 		log.Fatalf("Error: database not initialized")
 	}
-	return conn
+	return proxyIn
 }
