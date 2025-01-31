@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-mysql-org/go-mysql/server"
 	"log"
 	"net"
 )
@@ -13,16 +12,17 @@ func main() {
 		log.Fatalf("failed to start proxy: %s", err.Error())
 	}
 	fmt.Printf("Listening on localhost%d", 3307)
-	for {
-		proxyIn, err := socket.Accept()
-		InitializeProxyIn(proxyIn)
+	originSocket, err := socket.Accept()
+	p := InitializeProxy(originSocket)
 
-		log.Printf("new connection: %s", proxyIn.RemoteAddr())
-		if err != nil {
-			log.Fatalf("failed to accept connection: %s", err.Error())
-		}
-
+	log.Printf("new connection: %s", originSocket.RemoteAddr())
+	if err != nil {
+		log.Fatalf("failed to accept connection: %s", err.Error())
 	}
+	for {
+		p.in.HandleCommand()
+	}
+
 }
 
 const COM_QUERY = byte(0x03)

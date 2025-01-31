@@ -15,7 +15,7 @@ type Proxy struct {
 	out *client.Conn // proxy server0side 00 from server to real db
 }
 
-func InitializeProxyIn(c net.Conn) {
+func InitializeProxy(c net.Conn) *Proxy {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
@@ -36,15 +36,10 @@ func InitializeProxyIn(c net.Conn) {
 
 	p.in = _conn
 	p.out = _client
+	return p
 }
 
-func CloseDB() {
-	proxyIn.Close()
-}
-
-func GetDatabase() *server.Conn {
-	if proxyIn == nil {
-		log.Fatalf("Error: database not initialized")
-	}
-	return proxyIn
+func (p *Proxy) CloseDB() {
+	p.in.Close()
+	p.out.Close()
 }
