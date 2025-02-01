@@ -20,7 +20,7 @@ func main() {
 		log.Fatalf("failed to accept connection: %s", err.Error())
 	}
 	for {
-		if err := p.in.HandleCommand(); err != nil {
+		if err := p.server.HandleCommand(); err != nil {
 			log.Fatal(err)
 		}
 	}
