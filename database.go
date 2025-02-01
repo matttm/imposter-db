@@ -22,7 +22,7 @@ func InitializeProxy(c net.Conn) *Proxy {
 	pass := os.Getenv("DB_PASS")
 
 	p := &Proxy{}
-	_conn, err := server.NewConn(c, user, pass, server.EmptyHandler{})
+	_conn, err := server.NewConn(c, "root", "", server.EmptyHandler{})
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +32,7 @@ func InitializeProxy(c net.Conn) *Proxy {
 	}
 	// See "Important settings" section.
 
-	log.Fatalln("Database was successfully connected to")
+	log.Println("Database was successfully connected to")
 
 	p.in = _conn
 	p.out = _client

@@ -7,11 +7,11 @@ import (
 )
 
 func main() {
-	socket, err := net.Listen("tcp", ":3307")
+	socket, err := net.Listen("tcp", "127.0.0.1:3307")
 	if err != nil {
 		log.Fatalf("failed to start proxy: %s", err.Error())
 	}
-	fmt.Printf("Listening on localhost%d", 3307)
+	fmt.Printf("Listening on localhost:%d\n", 3307)
 	originSocket, err := socket.Accept()
 	p := InitializeProxy(originSocket)
 
@@ -20,7 +20,9 @@ func main() {
 		log.Fatalf("failed to accept connection: %s", err.Error())
 	}
 	for {
-		p.in.HandleCommand()
+		if err := p.in.HandleCommand(); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 }
