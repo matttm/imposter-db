@@ -22,7 +22,7 @@ func InitializeProxy(c net.Conn) *Proxy {
 	pass := os.Getenv("DB_PASS")
 
 	p := &Proxy{}
-	_client, err := client.Connect(fmt.Sprintf("%s:%s", host, port), user, pass, "ACO_MS_DB")
+	_client, err := client.Connect(fmt.Sprintf("%s:%s", host, port), user, pass, "")
 	if err != nil {
 		panic(err)
 	}

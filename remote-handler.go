@@ -25,11 +25,12 @@ func (h ProxyRequestHandler) UseDB(dbName string) error {
 // HandleQuery is called for COM_QUERY
 func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	log.Println("In HandleQuery")
-	stmt, err := h.remoteDb.Prepare(query)
+	log.Println(query)
+	res, err := h.remoteDb.Execute(query)
 	if err != nil {
 		return nil, err
 	}
-	return stmt.Execute()
+	return res, nil
 }
 
 // HandleFieldList is called for COM_FIELD_LIST packets
