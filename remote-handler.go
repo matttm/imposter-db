@@ -26,11 +26,12 @@ func (h ProxyRequestHandler) UseDB(dbName string) error {
 func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	log.Println("In HandleQuery")
 	log.Println(query)
-	res, err := h.remoteDb.Execute(query)
+	r, err := h.remoteDb.Execute(query)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	log.Printf("Executed query: %d", r.AffectedRows)
+	return r, nil
 }
 
 // HandleFieldList is called for COM_FIELD_LIST packets
@@ -38,13 +39,17 @@ func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_field_list.html
 func (h ProxyRequestHandler) HandleFieldList(table string, fieldWildcard string) ([]*mysql.Field, error) {
 	log.Println("In HandleFieldList")
-	return nil, mysql.NewError(2, "not implemented")
+	return h.remoteDb.FieldList(table, fieldWildcard)
 }
 
 // HandleStmtPrepare is called for COM_STMT_PREPARE
 func (h ProxyRequestHandler) HandleStmtPrepare(query string) (int, int, interface{}, error) {
 	log.Println("In HandleStmtPrepare")
-	return 0, 0, nil, mysql.NewError(2, "not implemented")
+	stmt, err := h.remoteDb.Prepare(query)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	return stmt.ParamNum(), stmt.ColumnNum(), stmt, nil
 }
 
 // 'context' isn't used but replacing it with `_` would remove important information for who
@@ -54,13 +59,13 @@ func (h ProxyRequestHandler) HandleStmtPrepare(query string) (int, int, interfac
 // HandleStmtExecute is called for COM_STMT_EXECUTE
 func (h ProxyRequestHandler) HandleStmtExecute(context interface{}, query string, args []interface{}) (*mysql.Result, error) {
 	log.Println("In HandleStmtExecute")
-	return nil, mysql.NewError(2, "not implemented")
+	return context.(*client.Stmt).Execute(args...)
 }
 
 // HandleStmtClose is called for COM_STMT_CLOSE
 func (h ProxyRequestHandler) HandleStmtClose(context interface{}) error {
 	log.Println("In HandleStmtClose")
-	return mysql.NewError(2, "not implemented")
+	return context.(*client.Stmt).Close()
 }
 
 // HandleOtherCommand is called for commands not handled elsewhere

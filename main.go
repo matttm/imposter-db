@@ -19,6 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to accept connection: %s", err.Error())
 	}
+	defer p.CloseDB()
 	for {
 		if err := p.server.HandleCommand(); err != nil {
 			log.Fatal(err)
