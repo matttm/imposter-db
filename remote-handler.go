@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/go-mysql-org/go-mysql/client"
 	"github.com/go-mysql-org/go-mysql/mysql"
@@ -26,12 +27,16 @@ func (h ProxyRequestHandler) UseDB(dbName string) error {
 func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	log.Println("In HandleQuery")
 	log.Println(query)
-	r, err := h.remoteDb.Execute(query)
-	if err != nil {
-		return nil, err
+	res, err := h.remoteDb.Execute(query)
+
+	// SET doesn't seem to work due to EOF/OK differences
+	if strings.Contains(query, `SET NAMES`) {
+		return nil, nil
 	}
-	log.Printf("Executed query: %d", r.AffectedRows)
-	return r, nil
+	if strings.Contains(query, `set autocommit=0`) {
+		return nil, nil
+	}
+	return res, err
 }
 
 // HandleFieldList is called for COM_FIELD_LIST packets

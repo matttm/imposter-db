@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 )
 
 func main() {
@@ -12,18 +13,25 @@ func main() {
 		log.Fatalf("failed to start proxy: %s", err.Error())
 	}
 	fmt.Printf("Listening on localhost:%d\n", 3307)
-	originSocket, err := socket.Accept()
-	p := InitializeProxy(originSocket)
-
-	log.Printf("new connection: %s", originSocket.RemoteAddr())
-	if err != nil {
-		log.Fatalf("failed to accept connection: %s", err.Error())
-	}
-	defer p.CloseDB()
 	for {
-		if err := p.server.HandleCommand(); err != nil {
-			log.Fatal(err)
-		}
+		originSocket, err := socket.Accept()
+		go func(c net.Conn) {
+			p := InitializeProxy(originSocket)
+
+			log.Printf("new connection: %s\n", originSocket.RemoteAddr())
+			if err != nil {
+				log.Fatalf("failed to accept connection: %s", err.Error())
+			}
+			defer p.CloseDB()
+			for {
+				if err := p.server.HandleCommand(); err != nil {
+					if strings.Contains(err.Error(), "connection closed") {
+						continue
+					}
+					panic(err)
+				}
+			}
+		}(originSocket)
 	}
 
 }

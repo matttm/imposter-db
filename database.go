@@ -17,12 +17,12 @@ type Proxy struct {
 
 func InitializeProxy(c net.Conn) *Proxy {
 	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
+	// port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASS")
 
 	p := &Proxy{}
-	_client, err := client.Connect(fmt.Sprintf("%s:%s", host, port), user, pass, "")
+	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
 	if err != nil {
 		panic(err)
 	}
