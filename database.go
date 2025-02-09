@@ -1,45 +1,35 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net"
-	"os"
+	"context"
 
-	"github.com/go-mysql-org/go-mysql/client"
-	"github.com/go-mysql-org/go-mysql/server"
+	"github.com/dolthub/go-mysql-server/memory"
+	"github.com/dolthub/go-mysql-server/sql"
 )
 
-type Proxy struct {
-	server *server.Conn // proxy server-side -- from client to server
-	client *client.Conn // proxy server0side 00 from server to real db
+var (
+	dbName    = "mydb"
+	tableName = "mytable"
+	address   = "localhost"
+	port      = 3306
+)
+
+var ctx *sql.Context = nil
+
+func InitEmptyDatabase() *memory.DbProvider {
+	pro := createTestDatabase()
+	// engine := sqle.NewDefault(pro)
+	// session := memory.NewSession(sql.NewBaseSession(), pro)
+	return pro
+
 }
 
-func InitializeProxy(c net.Conn) *Proxy {
-	host := os.Getenv("DB_HOST")
-	// port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	pass := os.Getenv("DB_PASS")
+func createTestDatabase() *memory.DbProvider {
+	db := memory.NewDatabase(dbName)
+	db.BaseDatabase.EnablePrimaryKeyIndexes()
 
-	p := &Proxy{}
-	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
-	if err != nil {
-		panic(err)
-	}
-	_conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client))
-	if err != nil {
-		panic(err)
-	}
-	// See "Important settings" section.
-
-	log.Println("Database was successfully connected to")
-
-	p.server = _conn
-	p.client = _client
-	return p
-}
-
-func (p *Proxy) CloseDB() {
-	p.server.Close()
-	p.client.Close()
+	pro := memory.NewDBProvider(db)
+	session := memory.NewSession(sql.NewBaseSession(), pro)
+	ctx = sql.NewContext(context.Background(), sql.WithSession(session))
+	return pro
 }
