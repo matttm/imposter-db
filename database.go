@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/dolthub/go-mysql-server/memory"
 	"github.com/dolthub/go-mysql-server/sql"
@@ -20,6 +21,7 @@ func InitEmptyDatabase() *memory.DbProvider {
 	pro := createTestDatabase()
 	// engine := sqle.NewDefault(pro)
 	// session := memory.NewSession(sql.NewBaseSession(), pro)
+	log.Println("Database provider init")
 	return pro
 
 }

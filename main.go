@@ -7,6 +7,20 @@ import (
 	"strings"
 )
 
+func handleConn(c net.Conn) {
+	p := InitializeProxy(c)
+
+	log.Printf("new connection: %s\n", c.RemoteAddr())
+	defer p.CloseProxy()
+	for {
+		if err := p.server.HandleCommand(); err != nil {
+			if strings.Contains(err.Error(), "connection closed") {
+				continue
+			}
+			panic(err)
+		}
+	}
+}
 func main() {
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
 	if err != nil {
@@ -14,27 +28,13 @@ func main() {
 	}
 	fmt.Printf("Listening on localhost:%d\n", 3307)
 	// inputTables := []string{"ACO_MS_DB.APLCTN_RVW_PRD"}
-	// provider := InitEmptyDatabase()
-
+	provider := InitEmptyDatabase()
 	for {
 		originSocket, err := socket.Accept()
-		go func(c net.Conn) {
-			p := InitializeProxy(originSocket)
-
-			log.Printf("new connection: %s\n", originSocket.RemoteAddr())
-			if err != nil {
-				log.Fatalf("failed to accept connection: %s", err.Error())
-			}
-			defer p.CloseProxy()
-			for {
-				if err := p.server.HandleCommand(); err != nil {
-					if strings.Contains(err.Error(), "connection closed") {
-						continue
-					}
-					panic(err)
-				}
-			}
-		}(originSocket)
+		if err != nil {
+			log.Fatalf("failed to accept connection: %s", err.Error())
+		}
+		go handleConn(originSocket)
 	}
 
 }
