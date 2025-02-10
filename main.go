@@ -5,13 +5,15 @@ import (
 	"log"
 	"net"
 	"strings"
+
+	"github.com/dolthub/go-mysql-server/memory"
 )
 
-func handleConn(c net.Conn) {
-	p := InitializeProxy(c)
+func handleConn(c net.Conn, provider *memory.DbProvider) {
+	p := InitializeProxy(c, provider)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
-	defer p.CloseProxy()
+	// defer p.CloseProxy()
 	for {
 		if err := p.server.HandleCommand(); err != nil {
 			if strings.Contains(err.Error(), "connection closed") {
@@ -34,7 +36,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket)
+		go handleConn(originSocket, provider)
 	}
 
 }
