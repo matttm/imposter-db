@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 
 	"github.com/dolthub/go-mysql-server/memory"
 	"github.com/go-mysql-org/go-mysql/client"
@@ -19,11 +18,6 @@ type Proxy struct {
 }
 
 func InitializeProxy(c net.Conn, pro *memory.DbProvider) *Proxy {
-	host := os.Getenv("DB_HOST")
-	// port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	pass := os.Getenv("DB_PASS")
-
 	p := &Proxy{}
 	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
 	if err != nil {

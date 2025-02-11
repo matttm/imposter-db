@@ -12,7 +12,6 @@ var (
 	dbName    = "mydb"
 	tableName = "mytable"
 	address   = "localhost"
-	port      = 3306
 )
 
 var ctx *sql.Context = nil
