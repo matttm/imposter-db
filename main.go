@@ -26,7 +26,12 @@ func handleConn(c net.Conn, provider *sql.DB) {
 }
 func main() {
 	log.Printf("Checking for available databases...")
-	InitOverseerConnection()
+	o := InitOverseerConnection()
+	databases := QueryFor(o, SHOW_DB_QUERY)
+	for _, v := range databases {
+		log.Println(v)
+	}
+	var provider *sql.DB = InitEmptyDatabase()
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
 	if err != nil {
@@ -34,7 +39,6 @@ func main() {
 	}
 	fmt.Printf("Listening on localhost:%d\n", 3307)
 	// inputTables := []string{"ACO_MS_DB.APLCTN_RVW_PRD"}
-	provider := InitEmptyDatabase()
 	for {
 		originSocket, err := socket.Accept()
 		if err != nil {

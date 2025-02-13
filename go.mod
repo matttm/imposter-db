@@ -6,10 +6,11 @@ toolchain go1.23.6
 
 require (
 	github.com/go-mysql-org/go-mysql v1.11.0
-	github.com/go-sql-driver/mysql v1.7.2-0.20231213112541-0004702b931d
+	github.com/go-sql-driver/mysql v1.8.1
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
