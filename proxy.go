@@ -1,11 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
 
-	"github.com/dolthub/go-mysql-server/memory"
 	"github.com/go-mysql-org/go-mysql/client"
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/server"
@@ -14,10 +14,10 @@ import (
 type Proxy struct {
 	server *server.Conn // proxy server-side -- from client to server
 	client *client.Conn // proxy server0side 00 from server to real db
-	p      *memory.DbProvider
+	p      *sql.DB
 }
 
-func InitializeProxy(c net.Conn, pro *memory.DbProvider) *Proxy {
+func InitializeProxy(c net.Conn, pro *sql.DB) *Proxy {
 	p := &Proxy{}
 	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
 	if err != nil {
