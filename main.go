@@ -1,17 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
 	"strings"
-
-	"github.com/dolthub/go-mysql-server/memory"
 )
 
 var ()
 
-func handleConn(c net.Conn, provider *memory.DbProvider) {
+func handleConn(c net.Conn, provider *sql.DB) {
 	p := InitializeProxy(c, provider)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
@@ -27,7 +26,7 @@ func handleConn(c net.Conn, provider *memory.DbProvider) {
 }
 func main() {
 	log.Printf("Checking for available databases...")
-	o := InitOverseerConnection()
+	InitOverseerConnection()
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
 	if err != nil {

@@ -1,81 +1,63 @@
 package main
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/dolthub/go-mysql-server/memory"
-	"github.com/dolthub/go-mysql-server/sql"
-	"github.com/go-mysql-org/go-mysql/client"
-	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/dolthub/go-mysql-server/driver"
+	_ "github.com/go-mysql-org/go-mysql/driver"
 )
 
 var (
 	dbName    = "mydb"
 	tableName = "mytable"
 	address   = "localhost"
-	port      = 3306
+	port      = "3306"
 	host      = os.Getenv("DB_HOST")
 	user      = os.Getenv("DB_USER")
 	pass      = os.Getenv("DB_PASS")
 )
 
-var ctx *sql.Context = nil
+func InitializeDatabase(user, pass, host, port, dbname, driverName string) *sql.DB {
+	url := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pass, host, port, dbname)
+	fmt.Printf("Connecting to %s...\n", url)
+	db, err := sql.Open(
+		driverName,
+		url,
+	)
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	err = db.Ping()
+	if err != nil {
+		fmt.Println("Error while pinging database")
+		panic(err)
+	}
+	log.Println("Database was successfully connected to")
+	return db
+}
 
-func InitOverseerConnection() *client.Conn {
+func InitOverseerConnection() *sql.DB {
+	sql.Register("sqle", driver.New(factory{}, nil))
 	// create connection to ask user what should be imposed
-	conductor, err := client.Connect(fmt.Sprintf("%s:%d", host, port), user, pass, "")
-	if err != nil {
-		panic(err)
-	}
-	return conductor
+	return InitializeDatabase(user, pass, host, port, "", "sqle")
 }
 
-func InitEmptyDatabase() *memory.DbProvider {
-	pro := createTestDatabase()
-	// engine := sqle.NewDefault(pro)
-	// session := memory.NewSession(sql.NewBaseSession(), pro)
+func InitEmptyDatabase() *sql.DB {
+	db, err := sql.Open("sqle", "")
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
 	log.Println("Database provider init")
-	return pro
+	return db
 
 }
 
-func createTestDatabase() *memory.DbProvider {
-	db := memory.NewDatabase(dbName)
-	db.BaseDatabase.EnablePrimaryKeyIndexes()
-
-	pro := memory.NewDBProvider(db)
-	session := memory.NewSession(sql.NewBaseSession(), pro)
-	ctx = sql.NewContext(context.Background(), sql.WithSession(session))
-	return pro
-}
-
-func QueryForPropety(c *client.Conn, query string) []string {
-	r, err := c.Execute(SHOW_DB_QUERY)
-	if err != nil {
-		panic(err)
-	}
-	//
-	// Close result for reuse memory (it's not necessary but very useful)
-	defer r.Close()
-
-	// Handle resultset
-	// v, _ := r.GetInt(0, 0)
-	// v, _ = r.GetIntByName(0, "id")
-
-	// Direct access to fields
-	for _, row := range r.Values {
-		for _, val := range row {
-			// _ := val.Value() // interface{}
-			// or
-			if val.Type == mysql.FieldValueTypeString {
-				log.Print(string(val.Value().([]uint8)))
-			}
-		}
-	}
-
-	// lets see what schemas are available
-
+func QueryForPropety(c *sql.DB, query string) []string {
+	props := []string{}
+	return props
 }
