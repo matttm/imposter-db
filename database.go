@@ -56,6 +56,7 @@ func InitEmptyDatabase() *sql.DB {
 }
 func QueryFor(db *sql.DB, query string) []string {
 	props := []string{}
+	log.Printf(query)
 	rows, err := db.Query(query)
 	if err != nil {
 		fmt.Println("Error while connecting to database")

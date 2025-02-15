@@ -10,6 +10,11 @@ import (
 
 var ()
 
+type selection struct {
+	database []string
+	table    []string
+}
+
 func handleConn(c net.Conn, provider *sql.DB) {
 	p := InitializeProxy(c, provider)
 
@@ -25,13 +30,18 @@ func handleConn(c net.Conn, provider *sql.DB) {
 	}
 }
 func main() {
+	s := selection{}
 	log.Printf("Checking for available databases...")
+
 	o := InitOverseerConnection()
 	databases := QueryFor(o, SHOW_DB_QUERY)
-	for _, v := range databases {
-		log.Println(v)
-	}
+	s.database = PromptSelection("Choose database", databases)
+	log.Printf("You chose %s", s.database[0])
+
+	table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
+	s.table = PromptSelection("Choose table", table)
 	var provider *sql.DB = InitEmptyDatabase()
+	log.Printf("You chose %s", s.table[0])
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
 	if err != nil {
