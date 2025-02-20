@@ -23,6 +23,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.2.3 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
 	github.com/charmbracelet/x/term v0.2.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dolthub/flatbuffers/v23 v23.3.3-dh.2 // indirect
 	github.com/dolthub/go-icu-regex v0.0.0-20241215010122-db690dd53c90 // indirect
 	github.com/dolthub/go-mysql-server v0.19.0 // indirect
@@ -54,6 +55,7 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tetratelabs/wazero v1.8.2 // indirect
 	go.opentelemetry.io/otel v1.31.0 // indirect
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
@@ -71,4 +73,5 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/src-d/go-errors.v1 v1.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
