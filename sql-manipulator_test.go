@@ -19,7 +19,7 @@ func Test_CreateConcat(t *testing.T) {
 			schemaName: "A",
 			tableName:  "GATES",
 			columns:    []string{"NAME", "OPEM", "CLOSE"},
-			expected:   "SELECT CONCAT('INSERT INTO ', 'A.GATES', 'SET NAME = x.NAME', 'OPEN = x.OPEN', 'CLOSE = x.CLOSE'; ) AS s FROM 'A.GATES' x;",
+			expected:   "SELECT CONCAT('INSERT INTO ', 'A.GATES ', 'SET NAME = ', x.NAME, 'OPEN = ', x.OPEN, 'CLOSE = ', x.CLOSE, ';' ) AS s FROM 'A.GATES' x;",
 		},
 	}
 	for _, v := range table {

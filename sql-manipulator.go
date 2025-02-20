@@ -7,16 +7,11 @@ import (
 
 func CreateConcatFromSchema(schemaName, tableName string, columns []string) string {
 	var sb strings.Builder
-	write(sb, `
-		CONCAT(
-		'INSERT INTO ',
-		'%s.%s' x
-		SET
-	`, dbName, tableName)
+	write(sb, `CONCAT('INSERT INTO ', '%s.%s ', 'SET `, dbName, tableName)
 	for i, v := range columns {
 		write(
 			sb,
-			`x.%s = %s`,
+			`%s = x.%s`,
 			v,
 			v,
 		)
@@ -24,9 +19,7 @@ func CreateConcatFromSchema(schemaName, tableName string, columns []string) stri
 			write(sb, ", ")
 		}
 	}
-	write(sb, `';'
-		)
-`)
+	write(sb, `';' ) FROM %s.%s x;`, schemaName, tableName)
 	return sb.String()
 }
 func write(sb strings.Builder, template string, a ...any) (int, error) {
