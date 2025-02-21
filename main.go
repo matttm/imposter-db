@@ -42,6 +42,16 @@ func main() {
 	s.table = PromptSelection("Choose table", table)
 	var provider *sql.DB = InitEmptyDatabase()
 	log.Printf("You chose %s", s.table[0])
+
+	createCommand := QueryFor(o, SHOW_CREATE(s.database[0], s.table[0]))
+	columns := QueryFor(o, SELECT_COLUMNS(s.table[0]))
+
+	log.Println(createCommand)
+	log.Println(columns)
+
+	inserts := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
+	log.Println(inserts)
+
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
 	if err != nil {

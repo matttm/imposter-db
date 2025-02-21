@@ -17,16 +17,22 @@ func Test_CreateConcat(t *testing.T) {
 	table := []CreateConcatTest{
 		{
 			schemaName: "A",
+			tableName:  "PRD",
+			columns:    []string{"PRD_CD"},
+			expected:   "SELECT CONCAT('INSERT INTO ', 'A.PRD ', 'SET ', 'PRD_CD = ', x.PRD_CD, ';' ) AS s FROM A.PRD x;",
+		},
+		{
+			schemaName: "A",
 			tableName:  "GATES",
-			columns:    []string{"NAME", "OPEM", "CLOSE"},
-			expected:   "SELECT CONCAT('INSERT INTO ', 'A.GATES ', 'SET NAME = ', x.NAME, 'OPEN = ', x.OPEN, 'CLOSE = ', x.CLOSE, ';' ) AS s FROM 'A.GATES' x;",
+			columns:    []string{"NAME", "OPEN", "CLOSE"},
+			expected:   "SELECT CONCAT('INSERT INTO ', 'A.GATES ', 'SET ', 'NAME = ', x.NAME, ', ', 'OPEN = ', x.OPEN, ', ', 'CLOSE = ', x.CLOSE, ';' ) AS s FROM A.GATES x;",
 		},
 	}
 	for _, v := range table {
 		assert.Equal(
 			t,
-			CreateConcatFromSchema(v.schemaName, v.tableName, v.columns),
 			v.expected,
+			CreateSelectInsertionFromSchema(v.schemaName, v.tableName, v.columns),
 		)
 	}
 }
