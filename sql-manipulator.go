@@ -11,7 +11,7 @@ func CreateSelectInsertionFromSchema(schemaName, tableName string, columns []str
 	for i, v := range columns {
 		write(
 			&sb,
-			`'%s = ', COALESCE(x.%s, "NULL")`,
+			`'%s = ', x.%s`,
 			v,
 			v,
 		)
