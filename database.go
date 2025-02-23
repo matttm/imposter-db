@@ -62,9 +62,27 @@ func QueryFor(db *sql.DB, query string) []string {
 		fmt.Println("Error while connecting to database")
 		panic(err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var s string
 		rows.Scan(&s)
+		props = append(props, s)
+	}
+	return props
+}
+func QueryForSecondColumn(db *sql.DB, query string) []string {
+	props := []string{}
+	log.Printf(query)
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var dud string
+		var s string
+		rows.Scan(&dud, &s)
 		props = append(props, s)
 	}
 	return props
