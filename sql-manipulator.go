@@ -12,13 +12,21 @@ func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]
 		name := v[0]
 		_type := v[1]
 		nullVal := getNullValue(_type)
+		isNull := "x.%s"
+		setVal := `x.%s`
+		if nullVal == `""` {
+			isNull = "CAST(x.%s AS CHAR)"
+			setVal = "x.%s"
+		}
+		isNull = fmt.Sprintf(isNull, name)
+		setVal = fmt.Sprintf(setVal, name)
 		write(
 			&sb,
-			`'%s = ', IF(ISNULL(x.%s), %v, x.%s)`,
+			`'%s = ', IF(ISNULL(%s), %v, %s)`,
 			name,
-			name,
+			isNull,
 			nullVal,
-			name,
+			setVal,
 		)
 		if i < len(columns)-1 {
 			write(&sb, ", ', ', ")
