@@ -43,8 +43,8 @@ func main() {
 	var provider *sql.DB = InitEmptyDatabase()
 	log.Printf("You chose %s", s.table[0])
 
-	createCommand := QueryForSecondColumn(o, SHOW_CREATE(s.database[0], s.table[0]))
-	columns := QueryFor(o, SELECT_COLUMNS(s.table[0]))
+	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
+	columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
 
 	log.Println(createCommand)
 	log.Println(columns)

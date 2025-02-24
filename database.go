@@ -70,8 +70,8 @@ func QueryFor(db *sql.DB, query string) []string {
 	}
 	return props
 }
-func QueryForSecondColumn(db *sql.DB, query string) []string {
-	props := []string{}
+func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
+	props := [][2]string{}
 	log.Printf(query)
 	rows, err := db.Query(query)
 	if err != nil {
@@ -80,9 +80,8 @@ func QueryForSecondColumn(db *sql.DB, query string) []string {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var dud string
-		var s string
-		rows.Scan(&dud, &s)
+		s := [2]string{}
+		rows.Scan(&s[0], &s[1])
 		props = append(props, s)
 	}
 	return props

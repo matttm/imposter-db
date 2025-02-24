@@ -5,15 +5,20 @@ import (
 	"strings"
 )
 
-func CreateSelectInsertionFromSchema(schemaName, tableName string, columns []string) string {
+func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]string) string {
 	var sb strings.Builder
 	write(&sb, `SELECT CONCAT('INSERT INTO ', '%s.%s ', 'SET ', `, schemaName, tableName)
 	for i, v := range columns {
+		name := v[0]
+		_type := v[1]
+		nullVal := getNullValue(_type)
 		write(
 			&sb,
-			`'%s = ', x.%s`,
-			v,
-			v,
+			`'%s = ', IF(ISNULL(x.%s), %v, x.%s)`,
+			name,
+			name,
+			nullVal,
+			name,
 		)
 		if i < len(columns)-1 {
 			write(&sb, ", ', ', ")
@@ -25,4 +30,20 @@ func CreateSelectInsertionFromSchema(schemaName, tableName string, columns []str
 func write(sb *strings.Builder, template string, a ...any) (int, error) {
 	s := fmt.Sprintf(template, a...)
 	return sb.WriteString(s)
+}
+func getNullValue(t string) any {
+	vals := []string{"INT", "INTEGER", "BIGINT", "TINYINT", "SMALLINT", "MEDIUMINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE"}
+	if contains(t, vals) {
+		return 0
+	}
+	return `""`
+}
+
+func contains(v string, a []string) bool {
+	for _, i := range a {
+		if i == v {
+			return true
+		}
+	}
+	return false
 }

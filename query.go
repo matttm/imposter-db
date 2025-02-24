@@ -16,6 +16,6 @@ var (
 		return fmt.Sprintf("SHOW CREATE TABLE %s.%s;", dbName, tableName)
 	}
 	SELECT_COLUMNS = func(tableName string) string {
-		return fmt.Sprintf("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='%s';", tableName)
+		return fmt.Sprintf("SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='%s';", tableName)
 	}
 )
