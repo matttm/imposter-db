@@ -86,3 +86,17 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	}
 	return props
 }
+func Populate(db *sql.DB, query string, inserts []string) {
+	_, err := db.Exec(query)
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	for _, ins := range inserts {
+		_, err = db.Exec(ins)
+		if err != nil {
+			fmt.Println("Error while connecting to database")
+			panic(err)
+		}
+	}
+}

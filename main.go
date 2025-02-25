@@ -40,7 +40,6 @@ func main() {
 
 	table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
 	s.table = PromptSelection("Choose table", table)
-	var provider *sql.DB = InitEmptyDatabase()
 	log.Printf("You chose %s", s.table[0])
 
 	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
@@ -56,6 +55,8 @@ func main() {
 	for _, v := range inserts {
 		log.Println(v)
 	}
+	var provider *sql.DB = InitEmptyDatabase()
+	Populate(provider, createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
