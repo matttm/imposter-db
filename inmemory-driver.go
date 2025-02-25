@@ -21,8 +21,7 @@ func (factory) Resolve(name string, options *driver.Options) (string, sql.Databa
 
 func createTestDatabase() *memory.Database {
 	const (
-		dbName    = "mydb"
-		tableName = "mytable"
+		dbName = "IMPOSTER"
 	)
 
 	db := memory.NewDatabase(dbName)

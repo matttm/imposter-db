@@ -55,8 +55,9 @@ func main() {
 	for _, v := range inserts {
 		log.Println(v)
 	}
-	var provider *sql.DB = InitEmptyDatabase()
-	Populate(provider, createCommand, inserts)
+	var memdn *sql.DB = InitEmptyDatabase()
+	log.Println("Database provider init")
+	Populate(memdn, createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -70,7 +71,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, provider)
+		go handleConn(originSocket, memdn)
 	}
 
 }
