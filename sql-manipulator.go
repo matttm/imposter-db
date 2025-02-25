@@ -16,7 +16,7 @@ func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]
 		setVal := `x.%s`
 		if nullVal == `""` {
 			isNull = "CAST(x.%s AS CHAR)"
-			setVal = "x.%s"
+			setVal = "CONCAT('\"', x.%s, '\"')"
 		}
 		isNull = fmt.Sprintf(isNull, name)
 		setVal = fmt.Sprintf(setVal, name)
