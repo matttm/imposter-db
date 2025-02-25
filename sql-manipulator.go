@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]
 		nullVal := getNullValue(_type)
 		isNull := "x.%s"
 		setVal := `x.%s`
-		if nullVal == `""` {
+		if nullVal != 0 {
 			isNull = "CAST(x.%s AS CHAR)"
 			setVal = "CONCAT('\"', x.%s, '\"')"
 		}
@@ -40,11 +41,18 @@ func write(sb *strings.Builder, template string, a ...any) (int, error) {
 	return sb.WriteString(s)
 }
 func getNullValue(t string) any {
-	vals := []string{"INT", "INTEGER", "BIGINT", "TINYINT", "SMALLINT", "MEDIUMINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE"}
-	if contains(t, vals) {
+	log.Println(t)
+	intTypes := []string{"int", "integer", "bigint", "tinyint", "smallint", "mediumint", "decimal", "numeric", "float", "double"}
+	if contains(t, intTypes) {
 		return 0
 	}
-	return `""`
+	if t == "date" {
+		return "QUOTE('1990-01-01')"
+	}
+	if t == "datetime" {
+		return "QUOTE('1990-01-01 00:00:00')"
+	}
+	return `QUOTE('NULL')`
 }
 
 func contains(v string, a []string) bool {
