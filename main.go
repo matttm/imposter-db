@@ -53,7 +53,9 @@ func main() {
 	log.Println(insertTemplate)
 
 	inserts := QueryFor(o, insertTemplate)
-	log.Panicln(inserts[0])
+	for _, v := range inserts {
+		log.Println(v)
+	}
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
