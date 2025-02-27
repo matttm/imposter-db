@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-mysql-org/go-mysql/client"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -42,8 +43,18 @@ func InitOverseerConnection() *sql.DB {
 	return InitializeDatabase(user, pass, host, port, dbName)
 }
 
-func InitLocalDatabase() *sql.DB {
-	return InitializeDatabase("root", "root", "localhost", "3306", "IMPOSTER")
+func InitLocalDatabase() *client.Conn {
+	c, err := client.Connect("localhost:3306", "root", "root", "IMPOSTER")
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	err = c.Ping()
+	if err != nil {
+		fmt.Println("Error while pinging database")
+		panic(err)
+	}
+	return c
 
 }
 func QueryFor(db *sql.DB, query string) []string {
@@ -78,19 +89,19 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	}
 	return props
 }
-func Populate(db *sql.DB, query string, inserts []string) {
-	_, err := db.Exec("USE IMPOSTER")
+func Populate(db *client.Conn, query string, inserts []string) {
+	_, err := db.Execute("USE IMPOSTER")
 	if err != nil {
 		fmt.Println("Error while connecting to database")
 		panic(err)
 	}
-	_, err = db.Exec(query)
+	_, err = db.Execute(query)
 	if err != nil {
 		fmt.Println("Error while connecting to database")
 		panic(err)
 	}
 	for _, ins := range inserts {
-		_, err = db.Exec(ins)
+		_, err = db.Execute(ins)
 		if err != nil {
 			fmt.Println("Error while connecting to database")
 			panic(err)

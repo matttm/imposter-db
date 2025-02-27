@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"strings"
@@ -12,11 +11,11 @@ import (
 
 type ProxyRequestHandler struct {
 	remoteDb *client.Conn
-	spoof    *sql.DB
+	spoof    *client.Conn
 	spoofed  string
 }
 
-func NewRemoteHandler(c *client.Conn, t string, db *sql.DB) ProxyRequestHandler {
+func NewRemoteHandler(c *client.Conn, t string, db *client.Conn) ProxyRequestHandler {
 	return ProxyRequestHandler{remoteDb: c, spoofed: t, spoof: db}
 }
 
@@ -38,6 +37,8 @@ func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 		return nil, nil
 	}
 	if strings.Contains(query, h.spoofed) {
+		r, err := h.spoof.Execute(query)
+		return r, err
 	}
 	res, err := h.remoteDb.Execute(query)
 

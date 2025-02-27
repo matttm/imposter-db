@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net"
@@ -14,11 +13,11 @@ import (
 type Proxy struct {
 	server  *server.Conn // proxy server-side -- from client to server
 	client  *client.Conn // proxy server0side 00 from server to real db
-	spoof   *sql.DB
+	spoof   *client.Conn
 	spoofed string
 }
 
-func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
+func InitializeProxy(c net.Conn, tableName string, db *client.Conn) *Proxy {
 	p := &Proxy{}
 	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
 	if err != nil {

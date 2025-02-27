@@ -1,11 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net"
 	"strings"
+
+	"github.com/go-mysql-org/go-mysql/client"
 )
 
 var ()
@@ -15,7 +16,7 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, tableName string, db *sql.DB) {
+func handleConn(c net.Conn, tableName string, db *client.Conn) {
 	p := InitializeProxy(c, tableName, db)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
@@ -56,10 +57,10 @@ func main() {
 	for _, v := range inserts {
 		log.Println(v)
 	}
-	var memdb *sql.DB = InitLocalDatabase()
-	defer memdb.Close()
+	var localDb *client.Conn = InitLocalDatabase()
+	defer localDb.Close()
 	log.Println("Database provider init")
-	Populate(memdb, createCommand, inserts)
+	Populate(localDb, createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -73,7 +74,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, s.table[0], memdb)
+		go handleConn(originSocket, s.table[0], localDb)
 	}
 
 }
