@@ -15,8 +15,8 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, provider *sql.DB) {
-	p := InitializeProxy(c, provider)
+func handleConn(c net.Conn, tableName string, db *sql.DB) {
+	p := InitializeProxy(c, tableName, db)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer p.CloseProxy()
@@ -34,6 +34,7 @@ func main() {
 	log.Printf("Checking for available databases...")
 
 	o := InitOverseerConnection()
+	defer o.Close()
 	databases := QueryFor(o, SHOW_DB_QUERY)
 	s.database = PromptSelection("Choose database", databases)
 	log.Printf("You chose %s", s.database[0])
@@ -55,9 +56,10 @@ func main() {
 	for _, v := range inserts {
 		log.Println(v)
 	}
-	var memdn *sql.DB = InitEmptyDatabase()
+	var memdb *sql.DB = InitLocalDatabase()
+	defer memdb.Close()
 	log.Println("Database provider init")
-	Populate(memdn, createCommand, inserts)
+	Populate(memdb, createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -71,7 +73,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, memdn)
+		go handleConn(originSocket, s.table[0], memdb)
 	}
 
 }

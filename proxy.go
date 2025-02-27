@@ -12,18 +12,19 @@ import (
 )
 
 type Proxy struct {
-	server *server.Conn // proxy server-side -- from client to server
-	client *client.Conn // proxy server0side 00 from server to real db
-	p      *sql.DB
+	server  *server.Conn // proxy server-side -- from client to server
+	client  *client.Conn // proxy server0side 00 from server to real db
+	spoof   *sql.DB
+	spoofed string
 }
 
-func InitializeProxy(c net.Conn, pro *sql.DB) *Proxy {
+func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	p := &Proxy{}
 	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
 	if err != nil {
 		panic(err)
 	}
-	_conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client))
+	_conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client, tableName, db))
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +34,8 @@ func InitializeProxy(c net.Conn, pro *sql.DB) *Proxy {
 
 	p.server = _conn
 	p.client = _client
-	p.p = pro
+	p.spoofed = tableName
+	p.spoof = db
 	return p
 }
 

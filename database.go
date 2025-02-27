@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/dolthub/go-mysql-server/driver"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -43,14 +42,8 @@ func InitOverseerConnection() *sql.DB {
 	return InitializeDatabase(user, pass, host, port, dbName)
 }
 
-func InitEmptyDatabase() *sql.DB {
-	sql.Register("sqle", driver.New(factory{}, nil))
-	db, err := sql.Open("sqle", "")
-	if err != nil {
-		fmt.Println("Error while connecting to database")
-		panic(err)
-	}
-	return db
+func InitLocalDatabase() *sql.DB {
+	return InitializeDatabase("root", "root", "localhost", "3306", "IMPOSTER")
 
 }
 func QueryFor(db *sql.DB, query string) []string {
