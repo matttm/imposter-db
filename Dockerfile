@@ -1,4 +1,5 @@
-
+#    docker build -t my-mysql .
+#    docker run -d --name my-mysql -p 3306:3306 my-mysql
 # Use the official MySQL image
 FROM mysql:latest
 
