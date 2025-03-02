@@ -1,5 +1,4 @@
 # imposter-db
-![imposter](https://github.com/user-attachments/assets/361f9b77-a3f3-4308-b520-e3e4905d6088 =100x300)
 
 ## Description
 
