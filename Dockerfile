@@ -12,8 +12,5 @@ EXPOSE 3306
 # Create a volume for persistent data
 VOLUME ["/var/lib/mysql"]
 
-# Copy any initialization scripts to be executed on startup
-COPY ./init.sql /docker-entrypoint-initdb.d/
-
 # Run initialization scripts on container startup
 CMD ["mysqld"]

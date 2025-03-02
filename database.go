@@ -44,7 +44,7 @@ func InitOverseerConnection() *sql.DB {
 }
 
 func InitLocalDatabase() *client.Conn {
-	c, err := client.Connect("localhost:3306", "root", "root", "IMPOSTER")
+	c, err := client.Connect("localhost:3306", "root", "mypassword", "")
 	if err != nil {
 		fmt.Println("Error while connecting to database")
 		panic(err)
@@ -90,7 +90,12 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	return props
 }
 func Populate(db *client.Conn, query string, inserts []string) {
-	_, err := db.Execute("USE IMPOSTER")
+	_, err := db.Execute("CREATE DATABASE IMPOSTER")
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	_, err = db.Execute("USE IMPOSTER")
 	if err != nil {
 		fmt.Println("Error while connecting to database")
 		panic(err)
