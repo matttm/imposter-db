@@ -90,25 +90,30 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	return props
 }
 func Populate(db *client.Conn, query string, inserts []string) {
-	_, err := db.Execute("CREATE DATABASE IMPOSTER")
+	_, err := db.Execute("DROP DATABASE IF EXISTS IMPOSTER")
 	if err != nil {
-		fmt.Println("Error while connecting to database")
+		fmt.Println("Error while dropping imposter database")
+		panic(err)
+	}
+	_, err = db.Execute("CREATE DATABASE IMPOSTER")
+	if err != nil {
+		fmt.Println("Error while creating imposter database")
 		panic(err)
 	}
 	_, err = db.Execute("USE IMPOSTER")
 	if err != nil {
-		fmt.Println("Error while connecting to database")
+		fmt.Println("Error while using database")
 		panic(err)
 	}
 	_, err = db.Execute(query)
 	if err != nil {
-		fmt.Println("Error while connecting to database")
+		fmt.Println("Error while creating spoofed table")
 		panic(err)
 	}
 	for _, ins := range inserts {
 		_, err = db.Execute(ins)
 		if err != nil {
-			fmt.Println("Error while connecting to database")
+			fmt.Println("Error while inserting spoofed data")
 			panic(err)
 		}
 	}
