@@ -8,7 +8,7 @@ import (
 
 func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]string) string {
 	var sb strings.Builder
-	write(&sb, `SELECT CONCAT('INSERT INTO %s.%s SET ', `, "IMPOSTER" /*schschemaName*/, tableName)
+	write(&sb, `SELECT CONCAT('INSERT INTO %s.%s SET ', `, schemaName, tableName)
 	for i, v := range columns {
 		name := v[0]
 		_type := v[1]

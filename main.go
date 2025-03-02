@@ -60,7 +60,7 @@ func main() {
 	var localDb *client.Conn = InitLocalDatabase()
 	defer localDb.Close()
 	log.Println("Database provider init")
-	Populate(localDb, createCommand, inserts)
+	Populate(localDb, s.database[0], createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")

@@ -89,18 +89,18 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	}
 	return props
 }
-func Populate(db *client.Conn, query string, inserts []string) {
-	_, err := db.Execute("DROP DATABASE IF EXISTS IMPOSTER")
+func Populate(db *client.Conn, dbName, query string, inserts []string) {
+	_, err := db.Execute(DROP_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while dropping imposter database")
 		panic(err)
 	}
-	_, err = db.Execute("CREATE DATABASE IMPOSTER")
+	_, err = db.Execute(CREATE_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while creating imposter database")
 		panic(err)
 	}
-	_, err = db.Execute("USE IMPOSTER")
+	_, err = db.Execute(USE_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while using database")
 		panic(err)

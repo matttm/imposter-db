@@ -18,4 +18,13 @@ var (
 	SELECT_COLUMNS = func(tableName string) string {
 		return fmt.Sprintf("SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='%s';", tableName)
 	}
+	DROP_DB = func(dbName string) string {
+		return fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
+	}
+	CREATE_DB = func(dbName string) string {
+		return fmt.Sprintf("CREATE DATABASE %s", dbName)
+	}
+	USE_DB = func(dbName string) string {
+		return fmt.Sprintf("USE %s", dbName)
+	}
 )
