@@ -11,10 +11,12 @@ import (
 
 type ProxyRequestHandler struct {
 	remoteDb *client.Conn
+	spoof    *client.Conn
+	spoofed  string
 }
 
-func NewRemoteHandler(c *client.Conn) ProxyRequestHandler {
-	return ProxyRequestHandler{remoteDb: c}
+func NewRemoteHandler(c *client.Conn, t string, db *client.Conn) ProxyRequestHandler {
+	return ProxyRequestHandler{remoteDb: c, spoofed: t, spoof: db}
 }
 
 // UseDB is called for COM_INIT_DB
@@ -27,8 +29,6 @@ func (h ProxyRequestHandler) UseDB(dbName string) error {
 func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	log.Println("In HandleQuery")
 	log.Println(query)
-	res, err := h.remoteDb.Execute(query)
-
 	// SET doesn't seem to work due to EOF/OK differences
 	if strings.Contains(query, `SET NAMES`) {
 		return nil, nil
@@ -36,6 +36,12 @@ func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	if strings.Contains(query, `set autocommit=0`) {
 		return nil, nil
 	}
+	if strings.Contains(query, h.spoofed) {
+		r, err := h.spoof.Execute(query)
+		return r, err
+	}
+	res, err := h.remoteDb.Execute(query)
+
 	return res, err
 }
 

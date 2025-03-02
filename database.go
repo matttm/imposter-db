@@ -1,81 +1,120 @@
 package main
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/dolthub/go-mysql-server/memory"
-	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/go-mysql-org/go-mysql/client"
-	"github.com/go-mysql-org/go-mysql/mysql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
-	dbName    = "mydb"
-	tableName = "mytable"
-	address   = "localhost"
-	port      = 3306
-	host      = os.Getenv("DB_HOST")
-	user      = os.Getenv("DB_USER")
-	pass      = os.Getenv("DB_PASS")
+	port   = "3306"
+	host   = os.Getenv("DB_HOST")
+	user   = os.Getenv("DB_USER")
+	pass   = os.Getenv("DB_PASS")
+	dbName = os.Getenv("DB_NAME")
 )
 
-var ctx *sql.Context = nil
+func InitializeDatabase(user, pass, host, port, dbname string) *sql.DB {
+	url := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pass, host, port, dbname)
+	fmt.Printf("Connecting to %s...\n", url)
+	db, err := sql.Open(
+		"mysql",
+		url,
+	)
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	err = db.Ping()
+	if err != nil {
+		fmt.Println("Error while pinging database")
+		panic(err)
+	}
+	log.Println("Database was successfully connected to")
+	return db
+}
 
-func InitOverseerConnection() *client.Conn {
+func InitOverseerConnection() *sql.DB {
 	// create connection to ask user what should be imposed
-	conductor, err := client.Connect(fmt.Sprintf("%s:%d", host, port), user, pass, "")
+	return InitializeDatabase(user, pass, host, port, dbName)
+}
+
+func InitLocalDatabase() *client.Conn {
+	c, err := client.Connect("localhost:3306", "root", "mypassword", "")
 	if err != nil {
+		fmt.Println("Error while connecting to database")
 		panic(err)
 	}
-	return conductor
-}
-
-func InitEmptyDatabase() *memory.DbProvider {
-	pro := createTestDatabase()
-	// engine := sqle.NewDefault(pro)
-	// session := memory.NewSession(sql.NewBaseSession(), pro)
-	log.Println("Database provider init")
-	return pro
-
-}
-
-func createTestDatabase() *memory.DbProvider {
-	db := memory.NewDatabase(dbName)
-	db.BaseDatabase.EnablePrimaryKeyIndexes()
-
-	pro := memory.NewDBProvider(db)
-	session := memory.NewSession(sql.NewBaseSession(), pro)
-	ctx = sql.NewContext(context.Background(), sql.WithSession(session))
-	return pro
-}
-
-func QueryForPropety(c *client.Conn, query string) []string {
-	r, err := c.Execute(SHOW_DB_QUERY)
+	err = c.Ping()
 	if err != nil {
+		fmt.Println("Error while pinging database")
 		panic(err)
 	}
-	//
-	// Close result for reuse memory (it's not necessary but very useful)
-	defer r.Close()
+	return c
 
-	// Handle resultset
-	// v, _ := r.GetInt(0, 0)
-	// v, _ = r.GetIntByName(0, "id")
-
-	// Direct access to fields
-	for _, row := range r.Values {
-		for _, val := range row {
-			// _ := val.Value() // interface{}
-			// or
-			if val.Type == mysql.FieldValueTypeString {
-				log.Print(string(val.Value().([]uint8)))
-			}
+}
+func QueryFor(db *sql.DB, query string) []string {
+	props := []string{}
+	log.Printf(query)
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var s string
+		rows.Scan(&s)
+		props = append(props, s)
+	}
+	return props
+}
+func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
+	props := [][2]string{}
+	log.Printf(query)
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Println("Error while connecting to database")
+		panic(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		s := [2]string{}
+		rows.Scan(&s[0], &s[1])
+		props = append(props, s)
+	}
+	return props
+}
+func Populate(db *client.Conn, query string, inserts []string) {
+	_, err := db.Execute("DROP DATABASE IF EXISTS IMPOSTER")
+	if err != nil {
+		fmt.Println("Error while dropping imposter database")
+		panic(err)
+	}
+	_, err = db.Execute("CREATE DATABASE IMPOSTER")
+	if err != nil {
+		fmt.Println("Error while creating imposter database")
+		panic(err)
+	}
+	_, err = db.Execute("USE IMPOSTER")
+	if err != nil {
+		fmt.Println("Error while using database")
+		panic(err)
+	}
+	_, err = db.Execute(query)
+	if err != nil {
+		fmt.Println("Error while creating spoofed table")
+		panic(err)
+	}
+	for _, ins := range inserts {
+		_, err = db.Execute(ins)
+		if err != nil {
+			fmt.Println("Error while inserting spoofed data")
+			panic(err)
 		}
 	}
-
-	// lets see what schemas are available
-
 }
