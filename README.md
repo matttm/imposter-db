@@ -15,18 +15,18 @@ To begin, you must have Go and Docker installed. In case you are on mac, docker 
 
 First set these environment variables as to connect to your desired remote database
 ```
-	export DB_HOST=""
-	export DB_USER=""
-	export DB_PASS=""
-	export DB_NAME=""
+export DB_HOST=""
+export DB_USER=""
+export DB_PASS=""
+export DB_NAME=""
 
 ```
 
 Then you'll need to build the docker image and then start a container:
 ```
-   docker build -t imposter-img .
+docker build -t imposter-img .
 
-   docker run -d --name imposter-cont -p 3306:3306 imposter-img
+docker run -d --name imposter-cont -p 3306:3306 imposter-img
 ```
 
 Then run:
