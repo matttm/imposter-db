@@ -12,7 +12,17 @@ Have you ever been in development and the needed data is in the test environment
 
 To begin, you must have Go and Docker installed. In case you are on mac, docker won't work by itself, unless you install docker desktop. If you're like me and PREFER CLIs, then install, `colima` which is a container runtime, and can serve as a "docker daemon".
 
-First you'll need to build the docker image and then start a container:
+
+First set these environment variables as to connect to your desired remote database
+```
+	export DB_HOST=""
+	export DB_USER=""
+	export DB_PASS=""
+	export DB_NAME=""
+
+```
+
+Then you'll need to build the docker image and then start a container:
 ```
    docker build -t imposter-img .
 
