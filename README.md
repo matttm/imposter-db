@@ -2,7 +2,7 @@
 
 ## Description
 
-This program that acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
+This program acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
 ## Motivation.
 
