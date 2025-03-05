@@ -52,6 +52,9 @@ database: 'my_db',  // your actual db name
 port: 3307,
 ```
 
+[!CAUTION]
+This currently not compatible with Sequelize. I've found the best experience to be when using a raw driver/connector without an ORM. If you find an issue, file it!
+
 ## Authors
 
 - Matt Maloney : matttm
