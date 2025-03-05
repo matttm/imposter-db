@@ -52,7 +52,7 @@ func getNullValue(t string) any {
 	if t == "datetime" {
 		return "QUOTE('1990-01-01 00:00:00')"
 	}
-	return `QUOTE('NULL')`
+	return `QUOTE('N')`
 }
 
 func contains(v string, a []string) bool {

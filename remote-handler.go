@@ -36,7 +36,11 @@ func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	if strings.Contains(query, `set autocommit=0`) {
 		return nil, nil
 	}
-	if strings.Contains(query, h.spoofed) {
+	if strings.Contains(query, `SET time_zone`) {
+		return nil, nil
+	}
+	tableName := fmt.Sprintf("FROM ACO_MS_DB.%s", h.spoofed) // adding space to tableName so similar tables names are not used
+	if strings.Contains(query, tableName) {
 		r, err := h.spoof.Execute(query)
 		return r, err
 	}

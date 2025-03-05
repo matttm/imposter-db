@@ -111,10 +111,14 @@ func Populate(db *client.Conn, dbName, query string, inserts []string) {
 		panic(err)
 	}
 	for _, ins := range inserts {
+		// log.Println(ins)
 		_, err = db.Execute(ins)
 		if err != nil {
 			fmt.Println("Error while inserting spoofed data")
-			panic(err)
+			// there wrete some inserts that errored because they had bad data in db,
+			// so it threw when afdded
+			//
+			// just ignore it
 		}
 	}
 }

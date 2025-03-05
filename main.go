@@ -51,12 +51,8 @@ func main() {
 	log.Println(columns)
 
 	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-	log.Println(insertTemplate)
 
 	inserts := QueryFor(o, insertTemplate)
-	for _, v := range inserts {
-		log.Println(v)
-	}
 	var localDb *client.Conn = InitLocalDatabase()
 	defer localDb.Close()
 	log.Println("Database provider init")
