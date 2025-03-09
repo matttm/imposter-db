@@ -20,12 +20,14 @@ func handleConn(c net.Conn, tableName string, db *client.Conn) {
 	p := InitializeProxy(c, tableName, db)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
-	// defer p.CloseProxy()
+	// defer c.Close()
+	defer p.CloseProxy()
 	for {
 		if err := p.server.HandleCommand(); err != nil {
 			if strings.Contains(err.Error(), "connection closed") {
 				continue
 			}
+			fmt.Println("----- ERROR -----")
 			panic(err)
 		}
 	}
@@ -51,12 +53,8 @@ func main() {
 	log.Println(columns)
 
 	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-	log.Println(insertTemplate)
 
 	inserts := QueryFor(o, insertTemplate)
-	for _, v := range inserts {
-		log.Println(v)
-	}
 	var localDb *client.Conn = InitLocalDatabase()
 	defer localDb.Close()
 	log.Println("Database provider init")
