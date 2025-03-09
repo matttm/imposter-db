@@ -20,12 +20,14 @@ func handleConn(c net.Conn, tableName string, db *client.Conn) {
 	p := InitializeProxy(c, tableName, db)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
-	// defer p.CloseProxy()
+	// defer c.Close()
+	defer p.CloseProxy()
 	for {
 		if err := p.server.HandleCommand(); err != nil {
 			if strings.Contains(err.Error(), "connection closed") {
 				continue
 			}
+			fmt.Println("----- ERROR -----")
 			panic(err)
 		}
 	}

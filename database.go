@@ -90,7 +90,12 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	return props
 }
 func Populate(db *client.Conn, dbName, query string, inserts []string) {
-	_, err := db.Execute(DROP_DB(dbName))
+	_, err := db.Execute("SET sql_mode=''")
+	if err != nil {
+		fmt.Println("Error while dropping imposter database")
+		panic(err)
+	}
+	_, err = db.Execute(DROP_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while dropping imposter database")
 		panic(err)

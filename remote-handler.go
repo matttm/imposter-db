@@ -30,17 +30,20 @@ func (h ProxyRequestHandler) HandleQuery(query string) (*mysql.Result, error) {
 	log.Println("In HandleQuery")
 	log.Println(query)
 	// SET doesn't seem to work due to EOF/OK differences
-	if strings.Contains(query, `SET NAMES`) {
-		return nil, nil
-	}
-	if strings.Contains(query, `set autocommit=0`) {
-		return nil, nil
-	}
-	if strings.Contains(query, `SET time_zone`) {
-		return nil, nil
-	}
-	tableName := fmt.Sprintf("FROM ACO_MS_DB.%s", h.spoofed) // adding space to tableName so similar tables names are not used
-	if strings.Contains(query, tableName) {
+	// if strings.Contains(query, `SET NAMES`) {
+	// 	return nil, nil
+	// }
+	// if strings.Contains(query, `set autocommit=0`) {
+	// 	return nil, nil
+	// }
+	// if strings.Contains(query, `SET time_zone`) {
+	// 	return nil, nil
+	// }
+	fromTableName := fmt.Sprintf("FROM ACO_MS_DB.%s ", h.spoofed)     // adding space to tableName so similar tables names are not used
+	updateTableName := fmt.Sprintf("UPDATE ACO_MS_DB.%s ", h.spoofed) // adding space to tableName so similar tables names are not used
+	if strings.Contains(query, fromTableName) ||
+		strings.Contains(query, updateTableName) {
+		log.Println("For proxy")
 		r, err := h.spoof.Execute(query)
 		return r, err
 	}
