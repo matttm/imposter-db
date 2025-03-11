@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strings"
 
 	"github.com/go-mysql-org/go-mysql/client"
 )
@@ -23,13 +22,6 @@ func handleConn(c net.Conn, tableName string, db *client.Conn) {
 	// defer c.Close()
 	defer p.CloseProxy()
 	for {
-		if err := p.server.HandleCommand(); err != nil {
-			if strings.Contains(err.Error(), "connection closed") {
-				continue
-			}
-			fmt.Println("----- ERROR -----")
-			panic(err)
-		}
 	}
 }
 func main() {

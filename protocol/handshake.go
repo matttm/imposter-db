@@ -5,6 +5,11 @@ import (
 	"encoding/binary"
 )
 
+type PacketHeader struct {
+	Length     uint32
+	SequenceId uint8
+}
+
 // MySql Protocol::HandshakeV10
 //
 // Definition can be fond at: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
@@ -34,8 +39,7 @@ func Decode(data []byte) (*HandshakeV10, error) {
 	data = data[5:] // this reassignment is done so the read bytes arnt included in search
 
 	// this string is null terminated, sp look dfor null
-	term := []byte{0x00}
-	serverVersionEndIdx := bytes.Index(data, term)
+	serverVersionEndIdx := bytes.IndexByte(data, 0x00)
 	payload.ServerVersion = string(data[:serverVersionEndIdx+1]) // we add 1 so null byte is included
 
 	data = data[:serverVersionEndIdx+2] // we add 2 so we move past null byte
@@ -68,7 +72,9 @@ func Decode(data []byte) (*HandshakeV10, error) {
 	if err := binary.Read(buffer, binary.LittleEndian, &payload.CapabilityFlags2); err != nil {
 		return payload, err
 	}
-
+	var capabilities uint32
+	capabilities |= uint32(payload.CapabilityFlags1) << 16
+	capabilities |= uint32(payload.CapabilityFlags2)
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
 		if err := binary.Read(buffer, binary.LittleEndian, &payload.AuthPluginDataLen); err != nil {
 			return payload, err
@@ -99,11 +105,12 @@ func Decode(data []byte) (*HandshakeV10, error) {
 	}
 
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
-		authPluginNameBytes, err := buffer.ReadBytes(0)
-		if err != nil {
-			return payload, err
-		}
-		payload.AuthPluginName = string(authPluginNameBytes[:len(authPluginNameBytes)-1])
+		// TODO: figurre this prop out
+		// authPluginNameBytes, err := buffer.ReadBytes(0)
+		// if err != nil {
+		// 	return payload, err
+		// }
+		// payload.AuthPluginName = string(authPluginNameBytes[:len(authPluginNameBytes)-1])
 	}
 
 	return payload, nil
