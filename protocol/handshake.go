@@ -14,6 +14,7 @@ type PacketHeader struct {
 //
 // Definition can be fond at: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
 type HandshakeV10 struct {
+	Header              *PacketHeader
 	ProtocolVersion     uint8
 	ServerVersion       string
 	ThreadID            uint32
