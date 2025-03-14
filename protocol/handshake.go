@@ -44,13 +44,11 @@ func Decode(data []byte) (*HandshakePacket, error) {
 	payload.ProtocolVersion = data[4]
 
 	data = data[5:] // this reassignment is done so the read bytes arnt included in search
-	fmt.Printf("right before serV %02x\n", data[0])
 	// this string is null terminated, sp look dfor null
 	serverVersionEndIdx := bytes.IndexByte(data, 0x00)
 	payload.ServerVersion = string(data[:serverVersionEndIdx])
 
 	data = data[serverVersionEndIdx+1:] // we add 1 so we move past null byte (nullbyte = data[serverVEIdx+1]
-	fmt.Printf("right after serV %02x\n", data[0])
 
 	buffer := bytes.NewReader(data)
 	if err := binary.Read(buffer, binary.LittleEndian, &payload.ThreadID); err != nil {
@@ -100,12 +98,9 @@ func Decode(data []byte) (*HandshakePacket, error) {
 		return payload, err
 	}
 
-	var authPluginDataPart2Len int
+	var authPluginDataPart2Len uint8
 	if int(payload.AuthPluginDataLen) > 0 {
-		authPluginDataPart2Len = int(payload.AuthPluginDataLen) - 8 //subtract the first part
-		if authPluginDataPart2Len < 13 {
-			authPluginDataPart2Len = 13
-		}
+		authPluginDataPart2Len = Max(13, payload.AuthPluginDataLen-8) //subtract the first part
 	}
 
 	payload.AuthPluginDataPart2 = make([]byte, authPluginDataPart2Len)
@@ -114,12 +109,16 @@ func Decode(data []byte) (*HandshakePacket, error) {
 	}
 
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
-		// TODO: figurre this prop out
-		// authPluginNameBytes, err := buffer.ReadBytes(0)
-		// if err != nil {
-		// 	return payload, err
-		// }
-		// payload.AuthPluginName = string(authPluginNameBytes[:len(authPluginNameBytes)-1])
+		// TODO:
+		name := []byte{}
+		for true {
+			b, err := buffer.ReadByte()
+			if err != nil || b == 0x0 {
+				break
+			}
+			name = append(name, b)
+		}
+		payload.AuthPluginName = string(name)
 	}
 
 	return payload, nil

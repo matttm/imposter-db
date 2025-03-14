@@ -22,7 +22,7 @@ func Test_Handshake_Decode(t *testing.T) {
 				},
 				ProtocolVersion:     10,
 				ServerVersion:       "8.0.35",
-				ThreadID:            96752,
+				ThreadID:            96752, // []byte{0xf0, 0x79, 0x1, 0x0}
 				AuthPluginDataPart1: [8]byte{0x37, 0x39, 0xa, 0x45, 0x78, 0x15, 0x5a, 0x6e},
 				Filler:              0,
 				CapabilityFlags1:    0xffff,
@@ -31,7 +31,7 @@ func Test_Handshake_Decode(t *testing.T) {
 				CapabilityFlags2:    0xdfff,
 				AuthPluginDataLen:   21,
 				Reserved:            [10]byte{},
-				AuthPluginDataPart2: []byte{},
+				AuthPluginDataPart2: []byte{0x10, 0x6c, 0x6f, 0xd, 0x7c, 0x2e, 0x55, 0x1f, 0x6d, 0x51, 0x52, 0x77, 0x0},
 				AuthPluginName:      "mysql_native_password",
 			},
 		},
