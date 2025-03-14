@@ -54,7 +54,6 @@ func Decode(data []byte) (*HandshakePacket, error) {
 	if err := binary.Read(buffer, binary.LittleEndian, &payload.ThreadID); err != nil {
 		return payload, err
 	}
-	fmt.Printf("%02x", payload.ThreadID)
 
 	if err := binary.Read(buffer, binary.LittleEndian, &payload.AuthPluginDataPart1); err != nil {
 		return payload, err
@@ -122,4 +121,52 @@ func Decode(data []byte) (*HandshakePacket, error) {
 	}
 
 	return payload, nil
+}
+func Encode(p *HandshakePacket) ([]byte, error) {
+	var b []byte
+	w := bytes.NewBuffer(b)
+	if err := binary.Write(w, binary.LittleEndian, p.Header.Length); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Header.SequenceId); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.ProtocolVersion); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.ServerVersion); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.ThreadID); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataPart1); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Filler); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.CapabilityFlags1); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.CharacterSet); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.CapabilityFlags2); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataLen); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Reserved); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataPart2); err != nil {
+		return b, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginName); err != nil {
+		return b, err
+	}
+	fmt.Println(b)
+	return b, nil
 }
