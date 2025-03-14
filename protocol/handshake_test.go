@@ -48,7 +48,11 @@ func Test_Handshake_Decode(t *testing.T) {
 }
 func Test_Handshake_Encode(t *testing.T) {
 	for _, entry := range table {
-		b, _ := Encode(entry.decoded)
+		w, err := Encode(entry.decoded)
+		b := w.Bytes()
+		if err != nil {
+			panic(err)
+		}
 		assert.Equal(
 			t,
 			entry.encoded,

@@ -3,7 +3,6 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 )
 
 // Definition can be found at https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_packets.html
@@ -78,9 +77,7 @@ func Decode(data []byte) (*HandshakePacket, error) {
 	if err := binary.Read(buffer, binary.LittleEndian, &payload.CapabilityFlags2); err != nil {
 		return payload, err
 	}
-	var capabilities uint32
-	capabilities |= uint32(payload.CapabilityFlags1) << 16
-	capabilities |= uint32(payload.CapabilityFlags2)
+	var capabilities uint32 = payload.GetCapabilities()
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
 		if err := binary.Read(buffer, binary.LittleEndian, &payload.AuthPluginDataLen); err != nil {
 			return payload, err
@@ -122,51 +119,70 @@ func Decode(data []byte) (*HandshakePacket, error) {
 
 	return payload, nil
 }
-func Encode(p *HandshakePacket) ([]byte, error) {
+func Encode(p *HandshakePacket) (*bytes.Buffer, error) {
 	var b []byte
 	w := bytes.NewBuffer(b)
-	if err := binary.Write(w, binary.LittleEndian, p.Header.Length); err != nil {
-		return b, err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Header.SequenceId); err != nil {
-		return b, err
+	var h uint32
+	h |= p.Header.Length | uint32(p.Header.SequenceId)<<24
+	if err := binary.Write(w, binary.LittleEndian, &h); err != nil {
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.ProtocolVersion); err != nil {
-		return b, err
+		return w, err
 	}
-	if err := binary.Write(w, binary.LittleEndian, p.ServerVersion); err != nil {
-		return b, err
+	if err := binary.Write(w, binary.LittleEndian, []byte(p.ServerVersion)); err != nil {
+		return w, err
 	}
+	null := []byte{0x0} // for terminating abo e string
+	_ = binary.Write(w, binary.LittleEndian, null)
 	if err := binary.Write(w, binary.LittleEndian, p.ThreadID); err != nil {
-		return b, err
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataPart1); err != nil {
-		return b, err
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.Filler); err != nil {
-		return b, err
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.CapabilityFlags1); err != nil {
-		return b, err
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.CharacterSet); err != nil {
-		return b, err
+		return w, err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.StatusFlags); err != nil {
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.CapabilityFlags2); err != nil {
-		return b, err
+		return w, err
 	}
-	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataLen); err != nil {
-		return b, err
+	var capabilities uint32 = p.GetCapabilities()
+	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
+		if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataLen); err != nil {
+			return w, err
+		}
+	} else {
+		if err := binary.Write(w, binary.LittleEndian, null); err != nil {
+			return w, err
+		}
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.Reserved); err != nil {
-		return b, err
+		return w, err
 	}
 	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginDataPart2); err != nil {
-		return b, err
+		return w, err
 	}
-	if err := binary.Write(w, binary.LittleEndian, p.AuthPluginName); err != nil {
-		return b, err
+	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
+		if err := binary.Write(w, binary.LittleEndian, []byte(p.AuthPluginName)); err != nil {
+			return w, err
+		}
+		_ = binary.Write(w, binary.LittleEndian, null)
 	}
-	fmt.Println(b)
-	return b, nil
+	return w, nil
+}
+func (p *HandshakePacket) GetCapabilities() uint32 {
+	var capabilities uint32
+	capabilities |= uint32(p.CapabilityFlags1)
+	capabilities |= uint32(p.CapabilityFlags2) << 16
+	return capabilities
 }
