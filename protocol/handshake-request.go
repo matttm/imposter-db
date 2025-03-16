@@ -5,16 +5,10 @@ import (
 	"encoding/binary"
 )
 
-// Definition can be found at https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_packets.html
-type PacketHeader struct {
-	Length     uint32
-	SequenceId uint8
-}
-
-// MySql Protocol::HandshakePacket
+// MySql Protocol::HandshakeV10Packet
 //
 // Definition can be fond at: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
-type HandshakePacket struct {
+type HandshakeV10Packet struct {
 	Header              *PacketHeader
 	ProtocolVersion     uint8
 	ServerVersion       string
@@ -31,18 +25,14 @@ type HandshakePacket struct {
 	AuthPluginName      string
 }
 
-func Decode(data []byte) (*HandshakePacket, error) {
-	payload := &HandshakePacket{}
-	header := &PacketHeader{}
-	var payloadLength uint32 = 0
-	payloadLength |= uint32(data[0]) | (uint32(data[1]) << 8) | (uint32(data[2]) << 16)
-	header.Length = payloadLength
-	header.SequenceId = data[3]
-	payload.Header = header
+func DecodeHandshakeRequest(data []byte) (*HandshakeV10Packet, error) {
+	payload := &HandshakeV10Packet{}
+	h, headerLen := StripPacketHeader(data)
+	payload.Header = h
 
-	payload.ProtocolVersion = data[4]
+	payload.ProtocolVersion = data[headerLen+1]
 
-	data = data[5:] // this reassignment is done so the read bytes arnt included in search
+	data = data[headerLen+2:] // this reassignment is done so the read bytes arnt included in search
 	// this string is null terminated, sp look dfor null
 	serverVersionEndIdx := bytes.IndexByte(data, 0x00)
 	payload.ServerVersion = string(data[:serverVersionEndIdx])
@@ -105,21 +95,13 @@ func Decode(data []byte) (*HandshakePacket, error) {
 	}
 
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
-		// TODO:
-		name := []byte{}
-		for true {
-			b, err := buffer.ReadByte()
-			if err != nil || b == 0x0 {
-				break
-			}
-			name = append(name, b)
-		}
+		name := ReadNullTerminatedString(buffer)
 		payload.AuthPluginName = string(name)
 	}
 
 	return payload, nil
 }
-func Encode(p *HandshakePacket) (*bytes.Buffer, error) {
+func EncodeHandshakeRequest(p *HandshakeV10Packet) (*bytes.Buffer, error) {
 	var b []byte
 	w := bytes.NewBuffer(b)
 	var h uint32
@@ -180,7 +162,7 @@ func Encode(p *HandshakePacket) (*bytes.Buffer, error) {
 	}
 	return w, nil
 }
-func (p *HandshakePacket) GetCapabilities() uint32 {
+func (p *HandshakeV10Packet) GetCapabilities() uint32 {
 	var capabilities uint32
 	capabilities |= uint32(p.CapabilityFlags1)
 	capabilities |= uint32(p.CapabilityFlags2) << 16
