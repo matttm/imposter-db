@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-mysql-org/go-mysql/client"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -43,19 +42,8 @@ func InitOverseerConnection() *sql.DB {
 	return InitializeDatabase(user, pass, host, port, dbName)
 }
 
-func InitLocalDatabase() *client.Conn {
-	c, err := client.Connect("localhost:3306", "root", "mypassword", "")
-	if err != nil {
-		fmt.Println("Error while connecting to database")
-		panic(err)
-	}
-	err = c.Ping()
-	if err != nil {
-		fmt.Println("Error while pinging database")
-		panic(err)
-	}
-	return c
-
+func InitLocalDatabase() *sql.DB {
+	return InitializeDatabase("root", "mysqlpassword", "localhost", "3306", "")
 }
 func QueryFor(db *sql.DB, query string) []string {
 	props := []string{}
@@ -89,35 +77,35 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	}
 	return props
 }
-func Populate(db *client.Conn, dbName, query string, inserts []string) {
-	_, err := db.Execute("SET sql_mode=''")
+func Populate(db *sql.DB, dbName, query string, inserts []string) {
+	_, err := db.Exec("SET sql_mode=''")
 	if err != nil {
 		fmt.Println("Error while dropping imposter database")
 		panic(err)
 	}
-	_, err = db.Execute(DROP_DB(dbName))
+	_, err = db.Exec(DROP_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while dropping imposter database")
 		panic(err)
 	}
-	_, err = db.Execute(CREATE_DB(dbName))
+	_, err = db.Exec(CREATE_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while creating imposter database")
 		panic(err)
 	}
-	_, err = db.Execute(USE_DB(dbName))
+	_, err = db.Exec(USE_DB(dbName))
 	if err != nil {
 		fmt.Println("Error while using database")
 		panic(err)
 	}
-	_, err = db.Execute(query)
+	_, err = db.Exec(query)
 	if err != nil {
 		fmt.Println("Error while creating spoofed table")
 		panic(err)
 	}
 	for _, ins := range inserts {
 		// log.Println(ins)
-		_, err = db.Execute(ins)
+		_, err = db.Exec(ins)
 		if err != nil {
 			fmt.Println("Error while inserting spoofed data")
 			// there wrete some inserts that errored because they had bad data in db,

@@ -19,7 +19,7 @@ func Max(a, b uint8) uint8 {
 // Doc fof vaf length int: https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_dt_integers.html#sect_protocol_basic_dt_int_le
 //
 // return the integer and the number of bytes the int is, in mem
-func ParseVarLengthInt(r io.Reader) (uint64, int) {
+func ReadVarLengthInt(r io.Reader) (uint64, int) {
 	var x byte
 	var ret uint64
 	var sz int
@@ -69,7 +69,7 @@ func ReadFixedLengthString(r *bytes.Reader, n uint) string {
 	s := []byte{}
 	for n > 0 {
 		b, err := r.ReadByte()
-		if err != nil || b == 0x0 {
+		if err != nil {
 			break
 		}
 		s = append(s, b)

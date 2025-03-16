@@ -6,7 +6,6 @@ toolchain go1.23.6
 
 require (
 	github.com/charmbracelet/huh v0.6.0
-	github.com/go-mysql-org/go-mysql v1.11.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/stretchr/testify v1.10.0
 )

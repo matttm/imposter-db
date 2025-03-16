@@ -1,11 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
-
-	"github.com/go-mysql-org/go-mysql/client"
 )
 
 var ()
@@ -15,13 +14,14 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, tableName string, db *client.Conn) {
+func handleConn(c net.Conn, tableName string, db *sql.DB) {
 	p := InitializeProxy(c, tableName, db)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer c.Close()
 	defer p.CloseProxy()
 	for {
+		// TODO: add monitoring here
 	}
 }
 func main() {
@@ -47,7 +47,7 @@ func main() {
 	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
 
 	inserts := QueryFor(o, insertTemplate)
-	var localDb *client.Conn = InitLocalDatabase()
+	var localDb *sql.DB = InitLocalDatabase()
 	defer localDb.Close()
 	log.Println("Database provider init")
 	Populate(localDb, s.database[0], createCommand, inserts)

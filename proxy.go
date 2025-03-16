@@ -1,51 +1,57 @@
 package main
 
 import (
+	_ "github.com/go-sql-driver/mysql"
+
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
-
-	"github.com/go-mysql-org/go-mysql/client"
-	"github.com/go-mysql-org/go-mysql/mysql"
-	"github.com/go-mysql-org/go-mysql/server"
 )
 
 type Proxy struct {
-	server  *server.Conn // proxy server-side -- from client to server
-	client  *client.Conn // proxy server0side 00 from server to real db
-	spoof   *client.Conn
+	client  net.Conn
+	remote  net.Conn
+	localDb *sql.DB
 	spoofed string
 }
 
-func InitializeProxy(c net.Conn, tableName string, db *client.Conn) *Proxy {
+func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	p := &Proxy{}
-	_client, err := client.Connect(fmt.Sprintf("%s:%d", host, 3306), user, pass, "")
+	// TODO: implement handshake protocol here?
+	// i dont think i  can use the below as it would hide the handshake to me
+	// _conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client, tableName, db))
+
+	// im going to build up the tcp connectin to mysql protocol
+	remote, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
 	if err != nil {
 		panic(err)
 	}
-	_conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client, tableName, db))
+	var b []byte
+	_, err = remote.Read(b)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(b)
 	// See "Important settings" section.
 
 	log.Println("Database was successfully connected to")
 
-	p.server = _conn
-	p.client = _client
+	p.remote = remote
+	p.client = c // TODO: wrap this `c` as to not have raw data
 	p.spoofed = tableName
-	p.spoof = db
+	p.localDb = db
 	return p
 }
 
-func (p *Proxy) QueryRemote(query string, args ...interface{}) (*mysql.Result, error) {
-	if p.client == nil {
-		log.Panicf("Error: client is nil")
-	}
-	return p.client.Execute(query, args...)
-}
+// func (p *Proxy) QueryRemote(query string, args ...interface{}) (*sql.Result, error) {
+// 	if p.remote == nil {
+// 		log.Panicf("Error: remote is nil")
+// 	}
+// 	return p.remote.Execute(query, args...)
+// }
 
 func (p *Proxy) CloseProxy() {
-	p.server.Close()
+	p.remote.Close()
 	p.client.Close()
 }
