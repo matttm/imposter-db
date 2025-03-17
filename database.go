@@ -43,7 +43,7 @@ func InitOverseerConnection() *sql.DB {
 }
 
 func InitLocalDatabase() *sql.DB {
-	return InitializeDatabase("root", "mysqlpassword", "localhost", "3306", "")
+	return InitializeDatabase("root", "mypassword", "127.0.0.1", "3306", "")
 }
 func QueryFor(db *sql.DB, query string) []string {
 	props := []string{}

@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/matttm/imposter-db/protocol"
 
 	"database/sql"
 	"fmt"
@@ -27,12 +28,17 @@ func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	if err != nil {
 		panic(err)
 	}
-	var b []byte
-	_, err = remote.Read(b)
+	var b []byte = make([]byte, 1024)
+	n, err := remote.Read(b)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(b)
+	if n <= 0 {
+		panic("There's nothing to be read here")
+	}
+	b = b[:n]
+	h, _ := protocol.DecodeHandshakeRequest(b)
+	fmt.Printf("request: %+v", h)
 	// See "Important settings" section.
 
 	log.Println("Database was successfully connected to")

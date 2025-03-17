@@ -1,9 +1,13 @@
 package protocol
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
 // "testing"
 // "github.com/stretchr/testify/assert"
-)
 
 type HandshakeTestProps[T any] struct {
 	encoded []byte
@@ -18,42 +22,42 @@ var responseTable = []*HandshakeTestProps[HandshakeResponse420]{
 				Length:     211,
 				SequenceId: 1,
 			},
-			ClientFlag:              425313031,
-			MaxPacketSize:           16777215,
-			CharacterSet:            0xff,
-			Filler:                  [23]byte{},
-			Username:                "MPW3",
-			AuthResponseLenEnc:      nil,
-			AuthResponseFixedLength: []byte{0},
-			Database:                "",
-			ClientPluginName:        "mysql_native_password",
-			ClientAttributes:        nil,
-			ZstdCompressionLevel:    data[len(data)-1],
+			ClientFlag:           425313031,
+			MaxPacketSize:        16777215,
+			CharacterSet:         0xff,
+			Filler:               [23]byte{},
+			Username:             "MPW3",
+			AuthResponseLen:      14,
+			AuthResponse:         "",
+			Database:             "",
+			ClientPluginName:     "mysql_native_password",
+			ClientAttributes:     nil,
+			ZstdCompressionLevel: 0,
 		},
 	},
 }
 
-// func Test_Handshake_Response_Decode(t *testing.T) {
-// 	for _, entry := range responseTable {
-// 		p, _ := DecodeHandshakeRequest(entry.encoded)
-// 		assert.Equal(
-// 			t,
-// 			entry.decoded,
-// 			p,
-// 		)
-// 	}
-// }
-// func Test_Handshake_Response_Encode(t *testing.T) {
-// 	for _, entry := range responseTable {
-// 		w, err := EncodeHandshakeRequest(entry.decoded)
-// 		b := w.Bytes()
-// 		if err != nil {
-// 			panic(err)
-// 		}
-// 		assert.Equal(
-// 			t,
-// 			entry.encoded,
-// 			b,
-// 		)
-// 	}
-// }
+func Test_Handshake_Response_Decode(t *testing.T) {
+	for _, entry := range responseTable {
+		p, _ := DecodeHandshakeResponse(entry.encoded)
+		assert.Equal(
+			t,
+			entry.decoded,
+			p,
+		)
+	}
+}
+func Test_Handshake_Response_Encode(t *testing.T) {
+	for _, entry := range responseTable {
+		w, err := EncodeHandshakeResponse(entry.decoded)
+		b := w.Bytes()
+		if err != nil {
+			panic(err)
+		}
+		assert.Equal(
+			t,
+			entry.encoded,
+			b,
+		)
+	}
+}

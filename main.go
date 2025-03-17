@@ -25,32 +25,32 @@ func handleConn(c net.Conn, tableName string, db *sql.DB) {
 	}
 }
 func main() {
-	s := selection{}
-	log.Printf("Checking for available databases...")
-
-	o := InitOverseerConnection()
-	defer o.Close()
-	databases := QueryFor(o, SHOW_DB_QUERY)
-	s.database = PromptSelection("Choose database", databases)
-	log.Printf("You chose %s", s.database[0])
-
-	table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
-	s.table = PromptSelection("Choose table", table)
-	log.Printf("You chose %s", s.table[0])
-
-	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
-	columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
-
-	log.Println(createCommand)
-	log.Println(columns)
-
-	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-
-	inserts := QueryFor(o, insertTemplate)
+	// s := selection{}
+	// log.Printf("Checking for available databases...")
+	//
+	// o := InitOverseerConnection()
+	// defer o.Close()
+	// databases := QueryFor(o, SHOW_DB_QUERY)
+	// s.database = PromptSelection("Choose database", databases)
+	// log.Printf("You chose %s", s.database[0])
+	//
+	// table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
+	// s.table = PromptSelection("Choose table", table)
+	// log.Printf("You chose %s", s.table[0])
+	//
+	// createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
+	// columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
+	//
+	// log.Println(createCommand)
+	// log.Println(columns)
+	//
+	// insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
+	//
+	// inserts := QueryFor(o, insertTemplate)
 	var localDb *sql.DB = InitLocalDatabase()
-	defer localDb.Close()
-	log.Println("Database provider init")
-	Populate(localDb, s.database[0], createCommand, inserts)
+	// defer localDb.Close()
+	// log.Println("Database provider init")
+	// Populate(localDb, s.database[0], createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -64,7 +64,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, s.table[0], localDb)
+		go handleConn(originSocket, "APLCTN_RVW_PRD", localDb) // s.table[0], localDb)
 	}
 
 }

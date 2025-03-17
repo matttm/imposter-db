@@ -24,7 +24,6 @@ type HandshakeResponse420 struct {
 }
 
 func DecodeHandshakeResponse(b []byte) (*HandshakeResponse420, error) {
-
 	p := &HandshakeResponse420{}
 	h, headerSz := StripPacketHeader(b)
 	p.Header = h
@@ -53,8 +52,14 @@ func DecodeHandshakeResponse(b []byte) (*HandshakeResponse420, error) {
 		fmt.Println("Connection attributtes not implementeded")
 	}
 	if p.ClientFlag&CLIENT_ZSTD_COMPRESSION_ALGORITHM != 0 {
-		_ = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
+		fmt.Println("Zstd compression not implementeded")
+		// _ = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
 	}
 
 	return p, nil
+}
+func EncodeHandshakeResponse(p *HandshakeResponse420) (*bytes.Buffer, error) {
+	var b []byte
+	w := bytes.NewBuffer(b)
+	return w, nil
 }
