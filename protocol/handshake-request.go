@@ -30,9 +30,9 @@ func DecodeHandshakeRequest(data []byte) (*HandshakeV10Packet, error) {
 	h, headerLen := StripPacketHeader(data)
 	payload.Header = h
 
-	payload.ProtocolVersion = data[headerLen+1]
+	payload.ProtocolVersion = data[headerLen]
 
-	data = data[headerLen+2:] // this reassignment is done so the read bytes arnt included in search
+	data = data[headerLen+1:] // this reassignment is done so the read bytes arnt included in search
 	// this string is null terminated, sp look dfor null
 	serverVersionEndIdx := bytes.IndexByte(data, 0x00)
 	payload.ServerVersion = string(data[:serverVersionEndIdx])
