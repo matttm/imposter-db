@@ -21,25 +21,20 @@ func Max(a, b uint8) uint8 {
 // return the integer and the number of bytes the int is, in mem
 func ReadVarLengthInt(r io.Reader) (uint64, int) {
 	var x byte
-	var ret uint64
 	var sz int
-	err := binary.Read(r, binary.LittleEndian, x)
+	b := make([]byte, 1)
+	_, err := r.Read(b)
+	x = b[0]
 	if err != nil {
 		panic(err)
 	}
 	switch x {
 	case 0xFE:
-		var a uint64
-		err = binary.Read(r, binary.LittleEndian, a)
-		ret = a
 		sz = 8
 		break
 	case 0xFD:
-		panic("parsing 3-byte var length int not implemented")
+		sz = 3
 	case 0xFC:
-		var c uint16
-		err = binary.Read(r, binary.LittleEndian, c)
-		ret = uint64(c)
 		sz = 2
 		break
 	default:
@@ -48,7 +43,16 @@ func ReadVarLengthInt(r io.Reader) (uint64, int) {
 	if err != nil {
 		panic(err)
 	}
-	return ret, sz + 1 // we add 1 to account for the examined byte
+	buf := make([]byte, sz)
+	return binary.LittleEndian.Uint64(buf), sz + 1 // we add 1 to account for the examined byte
+}
+func ReadNBytes(r bytes.Reader, n uint) []byte {
+	b := make([]byte, n)
+	_, err := r.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 // Function ReadNullTerminatedString

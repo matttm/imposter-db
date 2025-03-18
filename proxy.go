@@ -38,6 +38,13 @@ func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	}
 	b = b[:n]
 	h, _ := protocol.DecodeHandshakeRequest(b)
+	c.Write(b)
+	b = make([]byte, 1024)
+	n, err = remote.Read(b)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Printf("request: %+v", h)
 	// See "Important settings" section.
 

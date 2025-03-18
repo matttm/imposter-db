@@ -7,7 +7,7 @@ import (
 )
 
 // Documentation can be found at https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_packets_protocol_handshake_response.html
-type HandshakeResponse420 struct {
+type HandshakeResponse41 struct {
 	Header                 *PacketHeader
 	ClientFlag             uint32
 	MaxPacketSize          uint32
@@ -23,13 +23,19 @@ type HandshakeResponse420 struct {
 	ZstdCompressionLevel   uint8
 }
 
-func DecodeHandshakeResponse(b []byte) (*HandshakeResponse420, error) {
-	p := &HandshakeResponse420{}
+func DecodeHandshakeResponse(b []byte) (*HandshakeResponse41, error) {
+	p := &HandshakeResponse41{}
 	h, headerSz := StripPacketHeader(b)
 	p.Header = h
 	b = b[headerSz:]
 	r := bytes.NewReader(b)
-	_ = binary.Read(r, binary.LittleEndian, &p.ClientFlag)
+	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
+	// I'll resd them seperately and shift into a uint32
+	var partA, partB uint16
+	_ = binary.Read(r, binary.LittleEndian, &partA)
+	_ = binary.Read(r, binary.LittleEndian, &partB)
+	p.ClientFlag |= uint32(partB)<<16 | uint32(partA)
+	fmt.Printf("flags %02x", p.ClientFlag)
 	_ = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
 	_ = binary.Read(r, binary.LittleEndian, &p.CharacterSet)
 	_ = binary.Read(r, binary.LittleEndian, &p.Filler)
@@ -58,7 +64,7 @@ func DecodeHandshakeResponse(b []byte) (*HandshakeResponse420, error) {
 
 	return p, nil
 }
-func EncodeHandshakeResponse(p *HandshakeResponse420) (*bytes.Buffer, error) {
+func EncodeHandshakeResponse(p *HandshakeResponse41) (*bytes.Buffer, error) {
 	var b []byte
 	w := bytes.NewBuffer(b)
 	return w, nil
