@@ -1,10 +1,13 @@
 package protocol
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var _cap uint32 = 0 | CLIENT_PROTOCOL_41
 
 var ok_table = []*HandshakeTestProps[OKPacket]{
 	&HandshakeTestProps[OKPacket]{
@@ -21,7 +24,7 @@ var ok_table = []*HandshakeTestProps[OKPacket]{
 
 func Test_Ok_Packet_Decode(t *testing.T) {
 	for _, entry := range ok_table {
-		p, _ := DecodeHandshakeRequest(entry.encoded)
+		p := DecodeOkPacket(_cap, bytes.NewReader(entry.encoded))
 		assert.Equal(
 			t,
 			entry.decoded,

@@ -24,9 +24,7 @@ type OKPacket struct {
 
 func DecodeOkPacket(capabilities uint32, r io.Reader) *OKPacket {
 	p := &OKPacket{}
-	h := make([]byte, 1)
-	_, _ = r.Read(h)
-	p.Header = h[0]
+	p.Header = ReadByte(r)
 	p.AffectedRows, _ = ReadVarLengthInt(r)
 	p.LastInsertID, _ = ReadVarLengthInt(r)
 
