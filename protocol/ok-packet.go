@@ -1,5 +1,10 @@
 package protocol
 
+import (
+	"encoding/binary"
+	"io"
+)
+
 // Documentation: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html
 
 // OKPacket represents the structure of an OK packet
@@ -15,34 +20,34 @@ type OKPacket struct {
 	Warnings         uint16 // 2 bytes if CLIENT_PROTOCOL_41
 	Info             string // String (LENENC) for human-readable status information
 	SessionStateInfo string // String (LENENC) for session state info, only if SERVER_SESSION_STATE_CHANGED
-	Capabilities     uint32 // Capabilities flags to check conditional fields
 }
 
-func Decode(b []byte) *OKPacket {
-	packet := &OKPacket{
-		Capabilities: capabilities,
-		StatusFlags:  statusFlags,
-		StatusFlags2: statusFlags2,
-	}
+func DecodeOkPacket(capabilities uint32, r io.Reader) *OKPacket {
+	p := &OKPacket{}
+	h := make([]byte, 1)
+	_, _ = r.Read(h)
+	p.Header = h[0]
+	p.AffectedRows, _ = ReadVarLengthInt(r)
+	p.LastInsertID, _ = ReadVarLengthInt(r)
 
 	if capabilities&CLIENT_PROTOCOL_41 != 0 {
-		// Handle the additional fields for CLIENT_PROTOCOL_41
-		packet.Warnings = 0 // placeholder, adjust as necessary
+		_ = binary.Read(r, binary.LittleEndian, &p.StatusFlags)
+		_ = binary.Read(r, binary.LittleEndian, &p.Warnings)
+	} else if capabilities&CLIENT_SESSION_TRACK != 0 {
+		_ = binary.Read(r, binary.LittleEndian, &p.StatusFlags)
 	}
-
 	if capabilities&CLIENT_SESSION_TRACK != 0 {
-		if sessionStateChanged || info != "" {
-			packet.Info = info
+		if p.StatusFlags&SERVER_SESSION_STATE_CHANGED != 0 || p.StatusFlags != 0 {
+			p.Info = ReadLengthEncodedString(r)
 		}
-
-		if sessionStateChanged {
-			packet.SessionStateInfo = sessionStateInfo
+		if p.StatusFlags&SERVER_SESSION_STATE_CHANGED != 0 {
+			p.SessionStateInfo = ReadLengthEncodedString(r)
 		}
 	} else {
-		packet.Info = info
+		// rezt of packet is for this field
+		rest, _ := io.ReadAll(r)
+		p.Info = string(rest)
 	}
-
 	// Handle the affected rows and last insert ID logic (to be determined by packet content)
-
-	return packet
+	return p
 }

@@ -8,7 +8,6 @@ import (
 
 // Documentation can be found at https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_packets_protocol_handshake_response.html
 type HandshakeResponse41 struct {
-	Header                 *PacketHeader
 	ClientFlag             uint32
 	MaxPacketSize          uint32
 	CharacterSet           uint8
@@ -25,9 +24,6 @@ type HandshakeResponse41 struct {
 
 func DecodeHandshakeResponse(b []byte) (*HandshakeResponse41, error) {
 	p := &HandshakeResponse41{}
-	h, headerSz := StripPacketHeader(b)
-	p.Header = h
-	b = b[headerSz:]
 	r := bytes.NewReader(b)
 	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
 	// I'll resd them seperately and shift into a uint32
@@ -43,10 +39,10 @@ func DecodeHandshakeResponse(b []byte) (*HandshakeResponse41, error) {
 	// TODO: DOUBLE-CHECK
 	if p.ClientFlag&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA != 0 {
 		_ = binary.Read(r, binary.LittleEndian, &p.AuthResponseLen)
-		p.AuthResponse = ReadFixedLengthString(r, uint(p.AuthResponseLen))
+		p.AuthResponse = ReadFixedLengthString(r, uint64(p.AuthResponseLen))
 	} else {
 		_ = binary.Read(r, binary.LittleEndian, &p.AuthResponseLen)
-		p.AuthResponse = ReadFixedLengthString(r, uint(p.AuthResponseLen))
+		p.AuthResponse = ReadFixedLengthString(r, uint64(p.AuthResponseLen))
 	}
 	if p.ClientFlag&CLIENT_CONNECT_WITH_DB != 0 {
 		p.Database = ReadNullTerminatedString(r)

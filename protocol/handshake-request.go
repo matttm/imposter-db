@@ -5,11 +5,10 @@ import (
 	"encoding/binary"
 )
 
-// MySql Protocol::HandshakeV10Packet
+// MySql Protocol::HandshakeV10Payload
 //
 // Definition can be fond at: https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
-type HandshakeV10Packet struct {
-	Header              *PacketHeader
+type HandshakeV10Payload struct {
 	ProtocolVersion     uint8
 	ServerVersion       string
 	ThreadID            uint32
@@ -25,14 +24,12 @@ type HandshakeV10Packet struct {
 	AuthPluginName      string
 }
 
-func DecodeHandshakeRequest(data []byte) (*HandshakeV10Packet, error) {
-	payload := &HandshakeV10Packet{}
-	h, headerLen := StripPacketHeader(data)
-	payload.Header = h
+func DecodeHandshakeRequest(data []byte) (*HandshakeV10Payload, error) {
+	payload := &HandshakeV10Payload{}
 
-	payload.ProtocolVersion = data[headerLen]
+	payload.ProtocolVersion = data[0]
 
-	data = data[headerLen+1:] // this reassignment is done so the read bytes arnt included in search
+	data = data[1:] // this reassignment is done so the read bytes arnt included in search
 	// this string is null terminated, sp look dfor null
 	serverVersionEndIdx := bytes.IndexByte(data, 0x00)
 	payload.ServerVersion = string(data[:serverVersionEndIdx])
@@ -101,14 +98,9 @@ func DecodeHandshakeRequest(data []byte) (*HandshakeV10Packet, error) {
 
 	return payload, nil
 }
-func EncodeHandshakeRequest(p *HandshakeV10Packet) (*bytes.Buffer, error) {
+func EncodeHandshakeRequest(p *HandshakeV10Payload) (*bytes.Buffer, error) {
 	var b []byte
 	w := bytes.NewBuffer(b)
-	var h uint32
-	h |= p.Header.Length | uint32(p.Header.SequenceId)<<24
-	if err := binary.Write(w, binary.LittleEndian, &h); err != nil {
-		return w, err
-	}
 	if err := binary.Write(w, binary.LittleEndian, p.ProtocolVersion); err != nil {
 		return w, err
 	}
@@ -162,7 +154,7 @@ func EncodeHandshakeRequest(p *HandshakeV10Packet) (*bytes.Buffer, error) {
 	}
 	return w, nil
 }
-func (p *HandshakeV10Packet) GetCapabilities() uint32 {
+func (p *HandshakeV10Payload) GetCapabilities() uint32 {
 	var capabilities uint32
 	capabilities |= uint32(p.CapabilityFlags1)
 	capabilities |= uint32(p.CapabilityFlags2) << 16

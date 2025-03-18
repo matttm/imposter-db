@@ -16,18 +16,12 @@ func Max(a, b uint8) uint8 {
 
 // Function ParseVarLengthInt will parse bytes into an int and
 //
-// Doc fof vaf length int: https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_dt_integers.html#sect_protocol_basic_dt_int_le
+// Doc for var length int: https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_dt_integers.html#sect_protocol_basic_dt_int_le
 //
 // return the integer and the number of bytes the int is, in mem
 func ReadVarLengthInt(r io.Reader) (uint64, int) {
-	var x byte
+	var x byte = ReadByte(r)
 	var sz int
-	b := make([]byte, 1)
-	_, err := r.Read(b)
-	x = b[0]
-	if err != nil {
-		panic(err)
-	}
 	switch x {
 	case 0xFE:
 		sz = 8
@@ -40,13 +34,20 @@ func ReadVarLengthInt(r io.Reader) (uint64, int) {
 	default:
 		return uint64(x), 1
 	}
+	buf := make([]byte, sz)
+	_, err := r.Read(buf)
 	if err != nil {
 		panic(err)
 	}
-	buf := make([]byte, sz)
 	return binary.LittleEndian.Uint64(buf), sz + 1 // we add 1 to account for the examined byte
 }
-func ReadNBytes(r bytes.Reader, n uint) []byte {
+func ReadLengthEncodedString(r io.Reader) string {
+	n, _ := ReadVarLengthInt(r)
+	return ReadFixedLengthString(r, n)
+}
+
+// Read N bytes while preserving edndian-ness
+func ReadNBytes(r io.Reader, n uint) []byte {
 	b := make([]byte, n)
 	_, err := r.Read(b)
 	if err != nil {
@@ -69,15 +70,20 @@ func ReadNullTerminatedString(r *bytes.Reader) string {
 	}
 	return string(name)
 }
-func ReadFixedLengthString(r *bytes.Reader, n uint) string {
-	s := []byte{}
-	for n > 0 {
-		b, err := r.ReadByte()
-		if err != nil {
-			break
-		}
-		s = append(s, b)
-		n--
+func ReadFixedLengthString(r io.Reader, n uint64) string {
+	s := make([]byte, n)
+	_, err := r.Read(s)
+	if err != nil {
+		panic(err)
 	}
 	return string(s)
+}
+func ReadByte(r io.Reader) byte {
+	b := make([]byte, 1)
+	_, err := r.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return b[0]
+
 }
