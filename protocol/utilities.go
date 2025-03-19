@@ -6,6 +6,8 @@ import (
 	"io"
 )
 
+var NULL = []byte{0x0}
+
 func Max(a, b uint8) uint8 {
 	if a > b {
 		return a
@@ -85,5 +87,28 @@ func ReadByte(r io.Reader) byte {
 		panic(err)
 	}
 	return b[0]
+}
 
+// Function ReadNullTerminatedString
+//
+// returns a string, and increments reader's position to after string's null byte
+func WriteNullTerminatedString(w io.Writer, s string) {
+	err := binary.Write(w, binary.LittleEndian, []byte(s))
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(w, binary.LittleEndian, NULL)
+	if err != nil {
+		panic(err)
+	}
+}
+func WriteLengthEncodedString(w io.Writer, s string) {
+	err := binary.Write(w, binary.LittleEndian, uint8(len(s)))
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(w, binary.LittleEndian, []byte(s))
+	if err != nil {
+		panic(err)
+	}
 }

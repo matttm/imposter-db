@@ -28,12 +28,27 @@ func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse4
 	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
 	// I'll resd them seperately and shift into a uint32
 	var partA, partB uint16
-	_ = binary.Read(r, binary.LittleEndian, &partA)
-	_ = binary.Read(r, binary.LittleEndian, &partB)
+	err := binary.Read(r, binary.LittleEndian, &partA)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Read(r, binary.LittleEndian, &partB)
+	if err != nil {
+		panic(err)
+	}
 	p.ClientFlag |= uint32(partB)<<16 | uint32(partA)
-	_ = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
-	_ = binary.Read(r, binary.LittleEndian, &p.CharacterSet)
-	_ = binary.Read(r, binary.LittleEndian, &p.Filler)
+	err = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Read(r, binary.LittleEndian, &p.CharacterSet)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Read(r, binary.LittleEndian, &p.Filler)
+	if err != nil {
+		panic(err)
+	}
 	p.Username = ReadNullTerminatedString(r)
 	// TODO: DOUBLE-CHECK
 	if capabilities&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA != 0 {
@@ -53,13 +68,53 @@ func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse4
 	}
 	if capabilities&CLIENT_ZSTD_COMPRESSION_ALGORITHM != 0 {
 		fmt.Println("Zstd compression not implementeded")
-		// _ = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
+		// err = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
 	}
-
 	return p, nil
 }
-func EncodeHandshakeResponse(p *HandshakeResponse41) (*bytes.Buffer, error) {
+func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*bytes.Buffer, error) {
 	var b []byte
 	w := bytes.NewBuffer(b)
+	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
+	// I'll resd them seperately and shift into a uint32
+	var partA, partB uint16
+	partA |= uint16(p.ClientFlag)
+	partB |= uint16(p.ClientFlag >> 16)
+	err := binary.Write(w, binary.LittleEndian, &partA)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(w, binary.LittleEndian, &partB)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(w, binary.LittleEndian, &p.MaxPacketSize)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(w, binary.LittleEndian, &p.CharacterSet)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(w, binary.LittleEndian, &p.Filler)
+	if err != nil {
+		panic(err)
+	}
+	WriteNullTerminatedString(w, p.Username)
+	// TODO: DOUBLE-CHECK
+	WriteLengthEncodedString(w, p.AuthResponse)
+	if capabilities&CLIENT_CONNECT_WITH_DB != 0 {
+		WriteNullTerminatedString(w, p.Database)
+	}
+	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
+		WriteNullTerminatedString(w, p.ClientPluginName)
+	}
+	if capabilities&CLIENT_CONNECT_ATTRS != 0 {
+		fmt.Println("Connection attributtes not implementeded")
+	}
+	if capabilities&CLIENT_ZSTD_COMPRESSION_ALGORITHM != 0 {
+		fmt.Println("Zstd compression not implementeded")
+		// err = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
+	}
 	return w, nil
 }

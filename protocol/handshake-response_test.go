@@ -39,7 +39,7 @@ func Test_Handshake_Response_Decode(t *testing.T) {
 }
 func Test_Handshake_Response_Encode(t *testing.T) {
 	for _, entry := range responseTable {
-		w, err := EncodeHandshakeResponse(entry.decoded)
+		w, err := EncodeHandshakeResponse(capForResp, entry.decoded)
 		b := w.Bytes()
 		if err != nil {
 			panic(err)
