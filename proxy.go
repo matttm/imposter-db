@@ -11,10 +11,10 @@ import (
 )
 
 type Proxy struct {
-	client  net.Conn
-	remote  net.Conn
-	localDb *sql.DB
-	spoofed string
+	client    net.Conn
+	remote    net.Conn
+	localDb   *sql.DB
+	tableName string
 }
 
 func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
@@ -28,31 +28,12 @@ func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	if err != nil {
 		panic(err)
 	}
-	var b []byte = make([]byte, 1024)
-	n, err := remote.Read(b)
-	if err != nil {
-		panic(err)
-	}
-	if n <= 0 {
-		panic("There's nothing to be read here")
-	}
-	b = b[:n]
-	h, _ := protocol.DecodeHandshakeRequest(b)
-	c.Write(b)
-	b = make([]byte, 1024)
-	n, err = remote.Read(b)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("request: %+v", h)
-	// See "Important settings" section.
-
+	_, _ = protocol.NewMessageHandler()
 	log.Println("Database was successfully connected to")
 
 	p.remote = remote
 	p.client = c // TODO: wrap this `c` as to not have raw data
-	p.spoofed = tableName
+	p.tableName = tableName
 	p.localDb = db
 	return p
 }

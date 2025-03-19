@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ var table = []*HandshakeTestProps[HandshakeV10Payload]{
 
 func Test_Handshake_Decode(t *testing.T) {
 	for _, entry := range table {
-		p, _ := DecodeHandshakeRequest(entry.encoded)
+		p, _ := DecodeHandshakeRequest(bytes.NewReader(entry.encoded))
 		assert.Equal(
 			t,
 			entry.decoded,

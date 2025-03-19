@@ -61,11 +61,11 @@ func ReadNBytes(r io.Reader, n uint) []byte {
 // Function ReadNullTerminatedString
 //
 // returns a string, and increments reader's position to after string's null byte
-func ReadNullTerminatedString(r *bytes.Reader) string {
+func ReadNullTerminatedString(r io.Reader) string {
 	name := []byte{}
 	for true {
-		b, err := r.ReadByte()
-		if err != nil || b == 0x0 {
+		b := ReadByte(r)
+		if b == 0x0 {
 			break
 		}
 		name = append(name, b)

@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 )
 
 // MySql Protocol::HandshakeV10Payload
@@ -24,60 +25,54 @@ type HandshakeV10Payload struct {
 	AuthPluginName      string
 }
 
-func DecodeHandshakeRequest(data []byte) (*HandshakeV10Payload, error) {
+func DecodeHandshakeRequest(r io.Reader) (*HandshakeV10Payload, error) {
 	payload := &HandshakeV10Payload{}
 
-	payload.ProtocolVersion = data[0]
+	payload.ProtocolVersion = ReadByte(r)
 
-	data = data[1:] // this reassignment is done so the read bytes arnt included in search
-	// this string is null terminated, sp look dfor null
-	serverVersionEndIdx := bytes.IndexByte(data, 0x00)
-	payload.ServerVersion = string(data[:serverVersionEndIdx])
+	payload.ServerVersion = ReadNullTerminatedString(r)
 
-	data = data[serverVersionEndIdx+1:] // we add 1 so we move past null byte (nullbyte = data[serverVEIdx+1]
-
-	buffer := bytes.NewReader(data)
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.ThreadID); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.ThreadID); err != nil {
 		return payload, err
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.AuthPluginDataPart1); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.AuthPluginDataPart1); err != nil {
 		return payload, err
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.Filler); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.Filler); err != nil {
 		return payload, err
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.CapabilityFlags1); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.CapabilityFlags1); err != nil {
 		return payload, err
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.CharacterSet); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.CharacterSet); err != nil {
 		return payload, err
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.StatusFlags); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.StatusFlags); err != nil {
 		return payload, err
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.CapabilityFlags2); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.CapabilityFlags2); err != nil {
 		return payload, err
 	}
 	var capabilities uint32 = payload.GetCapabilities()
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
-		if err := binary.Read(buffer, binary.LittleEndian, &payload.AuthPluginDataLen); err != nil {
+		if err := binary.Read(r, binary.LittleEndian, &payload.AuthPluginDataLen); err != nil {
 			return payload, err
 		}
 	} else {
 		payload.AuthPluginDataLen = 0
 		var tempFiller int8
-		if err := binary.Read(buffer, binary.LittleEndian, &tempFiller); err != nil {
+		if err := binary.Read(r, binary.LittleEndian, &tempFiller); err != nil {
 			return payload, err
 		}
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, &payload.Reserved); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &payload.Reserved); err != nil {
 		return payload, err
 	}
 
@@ -87,12 +82,12 @@ func DecodeHandshakeRequest(data []byte) (*HandshakeV10Payload, error) {
 	}
 
 	payload.AuthPluginDataPart2 = make([]byte, authPluginDataPart2Len)
-	if _, err := buffer.Read(payload.AuthPluginDataPart2); err != nil {
+	if _, err := r.Read(payload.AuthPluginDataPart2); err != nil {
 		return payload, err
 	}
 
 	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
-		name := ReadNullTerminatedString(buffer)
+		name := ReadNullTerminatedString(r)
 		payload.AuthPluginName = string(name)
 	}
 

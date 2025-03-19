@@ -11,7 +11,7 @@ type PacketHeader struct {
 	SequenceId uint8
 }
 
-func StripPacketHeader(r io.Reader) *PacketHeader {
+func BisectPayload(r io.Reader) *PacketHeader {
 	header := &PacketHeader{}
 	x := ReadNBytes(r, 3)
 	header.Length = binary.LittleEndian.Uint32(x)
