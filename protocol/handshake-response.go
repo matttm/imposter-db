@@ -22,7 +22,7 @@ type HandshakeResponse41 struct {
 	ZstdCompressionLevel   uint8
 }
 
-func DecodeHandshakeResponse(b []byte) (*HandshakeResponse41, error) {
+func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse41, error) {
 	p := &HandshakeResponse41{}
 	r := bytes.NewReader(b)
 	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
@@ -31,29 +31,27 @@ func DecodeHandshakeResponse(b []byte) (*HandshakeResponse41, error) {
 	_ = binary.Read(r, binary.LittleEndian, &partA)
 	_ = binary.Read(r, binary.LittleEndian, &partB)
 	p.ClientFlag |= uint32(partB)<<16 | uint32(partA)
-	fmt.Printf("flags %02x", p.ClientFlag)
 	_ = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
 	_ = binary.Read(r, binary.LittleEndian, &p.CharacterSet)
 	_ = binary.Read(r, binary.LittleEndian, &p.Filler)
 	p.Username = ReadNullTerminatedString(r)
 	// TODO: DOUBLE-CHECK
-	if p.ClientFlag&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA != 0 {
-		_ = binary.Read(r, binary.LittleEndian, &p.AuthResponseLen)
-		p.AuthResponse = ReadFixedLengthString(r, uint64(p.AuthResponseLen))
+	if capabilities&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA != 0 {
+		p.AuthResponse = ReadLengthEncodedString(r)
 	} else {
-		_ = binary.Read(r, binary.LittleEndian, &p.AuthResponseLen)
+		p.AuthResponseLen = ReadByte(r)
 		p.AuthResponse = ReadFixedLengthString(r, uint64(p.AuthResponseLen))
 	}
-	if p.ClientFlag&CLIENT_CONNECT_WITH_DB != 0 {
+	if capabilities&CLIENT_CONNECT_WITH_DB != 0 {
 		p.Database = ReadNullTerminatedString(r)
 	}
-	if p.ClientFlag&CLIENT_PLUGIN_AUTH != 0 {
+	if capabilities&CLIENT_PLUGIN_AUTH != 0 {
 		p.ClientPluginName = ReadNullTerminatedString(r)
 	}
-	if p.ClientFlag&CLIENT_CONNECT_ATTRS != 0 {
+	if capabilities&CLIENT_CONNECT_ATTRS != 0 {
 		fmt.Println("Connection attributtes not implementeded")
 	}
-	if p.ClientFlag&CLIENT_ZSTD_COMPRESSION_ALGORITHM != 0 {
+	if capabilities&CLIENT_ZSTD_COMPRESSION_ALGORITHM != 0 {
 		fmt.Println("Zstd compression not implementeded")
 		// _ = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
 	}
