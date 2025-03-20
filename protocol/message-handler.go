@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -21,32 +22,53 @@ func (h *MessageHandler) HandleMessage(r io.Reader) any {
 func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 	// NOTE: i am using io.Reader/Writers right now in handshaking but will probably use raw byte during command phase
 	// TODO: optimize and decide on io pkg or raw bytes
+	SetTCPNoDelay(client)
+	SetTCPNoDelay(remote)
 	mh := &MessageHandler{}
-	_ = BisectPayload(remote)
-	req, err := DecodeHandshakeRequest(remote)
+	var b []byte
+	b = ReadPacket(remote)
+	fmt.Printf("Packet: %02x", b)
+	n, err := client.Write(b)
+	fmt.Printf("Forwarded bytes: %d\n", n)
+	b = ReadPacket(client)
+	fmt.Printf("Packet: %02x", b)
 	if err != nil {
 		panic(err)
 	}
-	mh.Capabilities = req.GetCapabilities()
-	b, err := EncodeHandshakeRequest(req)
+	n, err = remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
-	// forwarding the req from server to client
-	client.Write(b.Bytes())
-	h := BisectPayload(client)
-	response := make([]byte, h.Length)
-	_, err = client.Read(response)
-	res, err := DecodeHandshakeResponse(mh.Capabilities, response)
-	b, err = EncodeHandshakeResponse(mh.Capabilities, res)
-	// forwarding to remote
-	remote.Write(b.Bytes())
-	// now i expect ok
-	_ = BisectPayload(remote)
-	ok := DecodeOkPacket(mh.Capabilities, remote)
-	if ok.Header != 0x0 {
-		fmt.Printf("OK packet was not received in response to a simple handshake as expected")
+	fmt.Printf("Forwarded bytes: %d\n", n)
+	b = ReadPacket(remote)
+	fmt.Printf("Packet: %02x", b)
+	n, err = client.Write(b)
+	if err != nil {
+		panic(err)
 	}
-	// See "Important settings" section.
+	fmt.Printf("Forwarded bytes: %d\n", n)
 	return mh, nil
+}
+func ReadPacket(c io.Reader) []byte {
+	h := make([]byte, 4)
+	_, err := io.ReadFull(c, h)
+	if err != nil {
+		panic(err)
+	}
+	seqId := h[3]
+	sz := binary.LittleEndian.Uint32(append(h[:3], 0x0))
+	h[3] = seqId
+	fmt.Printf("Expected Payload Length: %d\n", sz)
+	payload := make([]byte, sz)
+	n, err := io.ReadFull(c, payload)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Actual Payload Length: %d\n", n)
+	return append(h, payload...)
+}
+func SetTCPNoDelay(conn net.Conn) {
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		tcpConn.SetNoDelay(true)
+	}
 }

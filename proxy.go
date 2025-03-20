@@ -28,7 +28,7 @@ func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	if err != nil {
 		panic(err)
 	}
-	_, _ = protocol.NewMessageHandler()
+	_, _ = protocol.NewMessageHandler(c, remote)
 	log.Println("Database was successfully connected to")
 
 	p.remote = remote

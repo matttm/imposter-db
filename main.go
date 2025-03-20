@@ -47,7 +47,7 @@ func main() {
 	// insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
 	//
 	// inserts := QueryFor(o, insertTemplate)
-	var localDb *sql.DB = InitLocalDatabase()
+	// var localDb *sql.DB = InitLocalDatabase()
 	// defer localDb.Close()
 	// log.Println("Database provider init")
 	// Populate(localDb, s.database[0], createCommand, inserts)
@@ -64,7 +64,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, "APLCTN_RVW_PRD", localDb) // s.table[0], localDb)
+		go handleConn(originSocket, "APLCTN_RVW_PRD", nil) //  localDb)  // s.table[0], localDb)
 	}
 
 }
