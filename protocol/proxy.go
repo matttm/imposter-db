@@ -1,8 +1,7 @@
-package main
+package protocol
 
 import (
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/matttm/imposter-db/protocol"
 
 	"database/sql"
 	"fmt"
@@ -15,9 +14,10 @@ type Proxy struct {
 	remote    net.Conn
 	localDb   *sql.DB
 	tableName string
+	handler   *MessageHandler
 }
 
-func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
+func InitializeProxy(c net.Conn, host string, db *sql.DB, tableName string) *Proxy {
 	p := &Proxy{}
 	// TODO: implement handshake protocol here?
 	// i dont think i  can use the below as it would hide the handshake to me
@@ -28,14 +28,18 @@ func InitializeProxy(c net.Conn, tableName string, db *sql.DB) *Proxy {
 	if err != nil {
 		panic(err)
 	}
-	_, _ = protocol.NewMessageHandler(c, remote)
-	log.Println("Database was successfully connected to")
+	mh, _ := NewMessageHandler(c, remote)
+	log.Println("Handshake protocol with remote was successful")
 
 	p.remote = remote
 	p.client = c // TODO: wrap this `c` as to not have raw data
 	p.tableName = tableName
 	p.localDb = db
+	p.handler = mh
 	return p
+}
+func (p *Proxy) HandleCommand() {
+	p.handler.HandleMessage(p.client, p.remote, p.localDb)
 }
 
 // func (p *Proxy) QueryRemote(query string, args ...interface{}) (*sql.Result, error) {

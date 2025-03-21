@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+
+	"github.com/matttm/imposter-db/protocol"
 )
 
 var ()
@@ -15,13 +17,14 @@ type selection struct {
 }
 
 func handleConn(c net.Conn, tableName string, db *sql.DB) {
-	p := InitializeProxy(c, tableName, db)
+	p := protocol.InitializeProxy(c, host, db, tableName)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer c.Close()
 	defer p.CloseProxy()
 	for {
 		// TODO: add monitoring here
+		p.HandleCommand()
 	}
 }
 func main() {
