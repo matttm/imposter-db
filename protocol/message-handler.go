@@ -103,18 +103,29 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 }
 func ReadPacket(c net.Conn) []byte {
 	packets := []byte{}
+	h := make([]byte, 4)
+	_, err := io.ReadFull(c, h)
+	if err != nil {
+		panic(err)
+	}
+	seqId := h[3]
+	sz := binary.LittleEndian.Uint32(append(h[:3], 0x0))
+	h[3] = seqId
+	payload := make([]byte, sz)
+	_, err = io.ReadFull(c, payload)
+	if err != nil {
+		panic(err)
+	}
+	packets = append(packets, append(h, payload...)...)
 	// Set a read deadline to prevent indefinite blocking
 	c.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
 	defer c.SetReadDeadline(time.Time{}) // Reset deadline after function exits
 	for {
-		h := make([]byte, 4)
+		h = make([]byte, 4)
 		_, err := io.ReadFull(c, h)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				// Timeout occurred, return whatever we've read so far
-				if len(packets) == 0 {
-					continue
-				}
 				return packets
 			}
 			panic(err)
