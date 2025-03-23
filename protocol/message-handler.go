@@ -16,9 +16,13 @@ type MessageHandler struct {
 }
 
 // Method for handling messages when handshake has been done
-func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB) any {
+func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB) {
 	// i assume next message is a command
 	packet := ReadPacket(client)
+	if len(packet) <= 4 {
+		fmt.Println(fmt.Errorf("how is this case evem occuring: %s -- %02x", client.RemoteAddr().String()), packet)
+		return
+	}
 	cmd := Command(packet[4])
 	switch cmd {
 	case COM_SLEEP:
@@ -58,10 +62,10 @@ func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB)
 	case COM_QUERY:
 		fmt.Println("Routing to usual remote")
 		_, err := remote.Write(packet)
-		packet = ReadPacket(remote)
 		if err != nil {
 			panic(err)
 		}
+		packet = ReadPacket(remote)
 		_, err = client.Write(packet)
 		if err != nil {
 			panic(err)
@@ -69,15 +73,15 @@ func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB)
 	default:
 		fmt.Println("Unknown Command")
 	}
-	return nil
+	return
 }
 
 // Function that upgrades a tcp connection into a mysql protocol by completing a simple handshake
 func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 	// NOTE: replace generic forwarding
 	// TODO: optimize and decide on io pkg or raw bytes
-	SetTCPNoDelay(client)
-	SetTCPNoDelay(remote)
+	// SetTCPNoDelay(client)
+	// SetTCPNoDelay(remote)
 	mh := &MessageHandler{}
 	var b []byte
 	b = ReadPacket(remote)
@@ -97,21 +101,34 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 	}
 	return mh, nil
 }
-func ReadPacket(c io.Reader) []byte {
-	h := make([]byte, 4)
-	_, err := io.ReadFull(c, h)
-	if err != nil {
-		panic(err)
+func ReadPacket(c net.Conn) []byte {
+	packets := []byte{}
+	// Set a read deadline to prevent indefinite blocking
+	c.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
+	defer c.SetReadDeadline(time.Time{}) // Reset deadline after function exits
+	for {
+		h := make([]byte, 4)
+		_, err := io.ReadFull(c, h)
+		if err != nil {
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				// Timeout occurred, return whatever we've read so far
+				if len(packets) == 0 {
+					continue
+				}
+				return packets
+			}
+			panic(err)
+		}
+		seqId := h[3]
+		sz := binary.LittleEndian.Uint32(append(h[:3], 0x0))
+		h[3] = seqId
+		payload := make([]byte, sz)
+		_, err = io.ReadFull(c, payload)
+		if err != nil {
+			panic(err)
+		}
+		packets = append(packets, append(h, payload...)...)
 	}
-	seqId := h[3]
-	sz := binary.LittleEndian.Uint32(append(h[:3], 0x0))
-	h[3] = seqId
-	payload := make([]byte, sz)
-	_, err = io.ReadFull(c, payload)
-	if err != nil {
-		panic(err)
-	}
-	return append(h, payload...)
 }
 func SetTCPNoDelay(conn net.Conn) {
 	if tcpConn, ok := conn.(*net.TCPConn); ok {
@@ -146,7 +163,7 @@ func ReadAllMySQLPacketsNonBlocking(conn net.Conn) ([][]byte, error) {
 			return packets, nil
 		}
 		return nil, err
-	case <-time.After(500 * time.Millisecond): // Timeout to prevent hanging
+	case <-time.After(50 * time.Millisecond): // Timeout to prevent hanging
 		return packets, nil
 	}
 
