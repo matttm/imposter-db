@@ -11,6 +11,11 @@ type PacketHeader struct {
 	SequenceId uint8
 }
 
+type Packet[T any] struct {
+	h       *PacketHeader
+	payload *T
+}
+
 func BisectPayload(r io.Reader) *PacketHeader {
 	header := &PacketHeader{}
 	x := ReadNBytes(r, 3)
