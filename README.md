@@ -4,6 +4,9 @@
 
 This program acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
+> [!NOTE]
+> The `main` branch uses a third-psrty library for the mysql protocol snd is minimally function, meaning it breaks in some scenarios. Because of this, I am implementing the mysql  protocol on branch `crashing-on-update-bug`, to resolve these issues.
+
 ## Motivation.
 
 Have you ever been in development and the needed data is in the test environment, but working with it is almost impossible because application gates are always being opened and closed? With this program, just spoof the application gate table and connect to the proxy. You can easily modify the application gates without affecting the real gates in the test environment.
