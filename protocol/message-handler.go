@@ -15,7 +15,7 @@ type MessageHandler struct {
 	ServerStatus uint32
 }
 
-func (h *MessageHandler) constructFromPacket(b []byte) (*Packet[Payload], error) {}
+// func (h *MessageHandler) constructFromPacket(b []byte) (*Packet[Payload], error) {}
 
 // Method for handling messages when handshake has been done
 func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB) {
@@ -102,14 +102,16 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 	}
 	return mh, nil
 }
+
+// Reads a connection until there are no bytes to be read ATM
 func ReadPackets(c net.Conn) []byte {
 	packets := []byte{}
-	// hand here, until we have a packet to read
-	packet, err := ReadPacket(c)
+	// hand here, until we have a payload to read
+	payload, err := ReadPacket(c)
 	if err != nil {
 		panic(err)
 	}
-	packets = append(packets, packet...)
+	packets = append(packets, payload...)
 	// since we have one pavket, we just want to check if there
 	// are more without hanging, so set a timeout
 	c.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
@@ -117,7 +119,7 @@ func ReadPackets(c net.Conn) []byte {
 	for {
 		// we continue reading packets until a timeout, meaning
 		// we have no more packets to be read
-		packet, err = ReadPacket(c)
+		payload, err = ReadPacket(c)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				// Timeout occurred, return whatever we've read so far
@@ -125,31 +127,28 @@ func ReadPackets(c net.Conn) []byte {
 			}
 			panic(err)
 		}
-		packets = append(packets, append(h, payload...)...)
+		packets = append(packets, payload...)
 	}
 }
-func ReadPacket(c net.Conn) []byte {
+
+// ReadPacket reads one mysql packet, by examing the length encodings
+func ReadPacket(c net.Conn) ([]byte, error) {
 	packet := []byte{}
 	h := make([]byte, 4)
-		_, err := io.ReadFull(c, h)
-		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return nil, err
-		}
-		seqId := h[3]
-		sz := binary.LittleEndian.Uint32(append(h[:3], 0x0))
-		h[3] = seqId
-		payload := make([]byte, sz)
-		_, err = io.ReadFull(c, payload)
-		if err != nil {
-			panic(err)
-		}
-		packet = append(h, payload...)
-}
-func SetTCPNoDelay(conn net.Conn) {
-	if tcpConn, ok := conn.(*net.TCPConn); ok {
-		tcpConn.SetNoDelay(true)
+	_, err := io.ReadFull(c, h)
+	if err != nil {
+		return nil, err
 	}
+	seqId := h[3]
+	sz := binary.LittleEndian.Uint32(append(h[:3], 0x0))
+	h[3] = seqId
+	payload := make([]byte, sz)
+	_, err = io.ReadFull(c, payload)
+	if err != nil {
+		panic(err)
+	}
+	packet = append(h, payload...)
+	return packet, nil
 }
 
 // TODO: implement async ver
