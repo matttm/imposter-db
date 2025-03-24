@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -110,4 +111,11 @@ func WriteLengthEncodedString(w io.Writer, s string) {
 	if err != nil {
 		panic(err)
 	}
+}
+func customPanic(err error) {
+	if err == io.EOF {
+		fmt.Println("Client disconnected")
+		return
+	}
+	panic(err)
 }
