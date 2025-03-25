@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"time"
 )
@@ -85,8 +86,10 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 	// SetTCPNoDelay(remote)
 	mh := &MessageHandler{}
 	var b []byte
+	// read handshake request
 	b = ReadPackets(remote)
 	_, err := client.Write(b)
+	// read handshake rexponde
 	b = ReadPackets(client)
 	if err != nil {
 		panic(err)
@@ -95,6 +98,7 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 	if err != nil {
 		panic(err)
 	}
+	// read ok packet
 	b = ReadPackets(remote)
 	_, err = client.Write(b)
 	if err != nil {
@@ -124,6 +128,9 @@ func ReadPackets(c net.Conn) []byte {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				// Timeout occurred, return whatever we've read so far
 				return packets
+			}
+			if err == io.EOF {
+				log.Println("Closing client connection")
 			}
 			panic(err)
 		}
