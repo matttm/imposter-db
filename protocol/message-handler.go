@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"context"
 	"database/sql"
 	"encoding/binary"
 	"fmt"
@@ -14,14 +15,15 @@ type MessageHandler struct {
 	Capabilities uint32 // provided bby the server
 	ClientFlags  uint32
 	ServerStatus uint32
+	cancel       context.CancelFunc
 }
 
 // func (h *MessageHandler) constructFromPacket(b []byte) (*Packet[Payload], error) {}
 
 // Method for handling messages when handshake has been done
-func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB) {
+func (mh *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB) {
 	// i assume next message is a command
-	packet := ReadPackets(client)
+	packet := mh.ReadPackets(client)
 	if len(packet) <= 4 {
 		fmt.Println(fmt.Errorf("how is this case evem occuring: %s -- %02x", client.RemoteAddr().String()), packet)
 		return
@@ -68,7 +70,7 @@ func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB)
 		if err != nil {
 			panic(err)
 		}
-		packet = ReadPackets(remote)
+		packet = mh.ReadPackets(remote)
 		_, err = client.Write(packet)
 		if err != nil {
 			panic(err)
@@ -80,17 +82,18 @@ func (h *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB)
 }
 
 // Function that upgrades a tcp connection into a mysql protocol by completing a simple handshake
-func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
+func NewMessageHandler(client, remote net.Conn, cancel context.CancelFunc) (*MessageHandler, error) {
 	// NOTE: replace generic forwarding
 	// SetTCPNoDelay(client)
 	// SetTCPNoDelay(remote)
 	mh := &MessageHandler{}
+	mh.cancel = cancel
 	var b []byte
 	// read handshake request
-	b = ReadPackets(remote)
+	b = mh.ReadPackets(remote)
 	_, err := client.Write(b)
 	// read handshake rexponde
-	b = ReadPackets(client)
+	b = mh.ReadPackets(client)
 	if err != nil {
 		panic(err)
 	}
@@ -99,7 +102,7 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 		panic(err)
 	}
 	// read ok packet
-	b = ReadPackets(remote)
+	b = mh.ReadPackets(remote)
 	_, err = client.Write(b)
 	if err != nil {
 		panic(err)
@@ -108,7 +111,7 @@ func NewMessageHandler(client, remote net.Conn) (*MessageHandler, error) {
 }
 
 // Reads a connection until there are no bytes to be read ATM
-func ReadPackets(c net.Conn) []byte {
+func (mh *MessageHandler) ReadPackets(c net.Conn) []byte {
 	packets := []byte{}
 	// hand here, until we have a payload to read
 	payload, err := ReadPacket(c)
@@ -131,6 +134,8 @@ func ReadPackets(c net.Conn) []byte {
 			}
 			if err == io.EOF {
 				log.Println("Closing client connection")
+				mh.cancel()
+				return packets
 			}
 			panic(err)
 		}

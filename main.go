@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -17,14 +18,20 @@ type selection struct {
 }
 
 func handleConn(c net.Conn, tableName string, db *sql.DB) {
-	p := protocol.InitializeProxy(c, host, db, tableName)
+	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
+	p := protocol.InitializeProxy(c, host, db, tableName, cancel)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer c.Close()
 	defer p.CloseProxy()
 	for {
+		select {
+		case <-ctx.Done():
+			return // Exit loop when context is done
 		// TODO: add monitoring here
-		p.HandleCommand()
+		default:
+			p.HandleCommand()
+		}
 	}
 }
 func main() {
