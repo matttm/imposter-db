@@ -1,6 +1,8 @@
 package protocol
 
 import (
+	"context"
+
 	_ "github.com/go-sql-driver/mysql"
 
 	"database/sql"
@@ -15,10 +17,12 @@ type Proxy struct {
 	localDb   *sql.DB
 	tableName string
 	handler   *MessageHandler
+	cancel    context.CancelFunc
 }
 
-func InitializeProxy(c net.Conn, host string, db *sql.DB, tableName string) *Proxy {
+func InitializeProxy(c net.Conn, host string, db *sql.DB, tableName string, cancel context.CancelFunc) *Proxy {
 	p := &Proxy{}
+	p.cancel = cancel
 	// TODO: implement handshake protocol here?
 	// i dont think i  can use the below as it would hide the handshake to me
 	// _conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client, tableName, db))
@@ -28,7 +32,7 @@ func InitializeProxy(c net.Conn, host string, db *sql.DB, tableName string) *Pro
 	if err != nil {
 		panic(err)
 	}
-	mh, _ := NewMessageHandler(c, remote)
+	mh, _ := NewMessageHandler(c, remote, cancel)
 	log.Println("Handshake protocol with remote was successful")
 
 	p.remote = remote
