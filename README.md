@@ -5,7 +5,7 @@
 This program acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
 > [!NOTE]
-> The `main` branch uses a third-psrty library for the mysql protocol snd is minimally function, meaning it breaks in some scenarios. Because of this, I am implementing the mysql  protocol on branch `crashing-on-update-bug`, to resolve these issues. Follow PR #2 to keep informed.
+> The `main` branch uses a third-party library for the mysql protocol and is minimally functional, meaning it breaks in some scenarios. Because of this, I am implementing the mysql  protocol on branch `crashing-on-update-bug`, to resolve these issues. Follow PR #2 to keep informed.
 
 ## Motivation.
 
