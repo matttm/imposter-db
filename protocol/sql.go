@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+type Client interface {
+	respondToHandshakeReq(req []byte) []byte
+	handleOkResponse(ok []byte) []byte
+}
+
 func CompleteSimpleHandshakeV10(remote, client net.Conn, cancel context.CancelFunc) {
 	var b []byte
 	// read handshake request
@@ -37,7 +42,6 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 	// i assume next message is a command
 	packet := ReadPackets(client, cancel)
 	if len(packet) <= 4 {
-		fmt.Println(fmt.Errorf("how is this case evem occuring: %s -- %02x", client.RemoteAddr().String()), packet)
 		return
 	}
 	cmd := Command(packet[4])

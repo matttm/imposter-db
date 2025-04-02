@@ -1,0 +1,107 @@
+package protocol
+
+import (
+	"context"
+
+	"fmt"
+	"log"
+	"net"
+)
+
+type Proxy struct {
+	client    net.Conn
+	remote    net.Conn
+	localDb   net.Conn
+	tableName string
+	cancel    context.CancelFunc
+}
+
+func InitializeProxy(client net.Conn, host string, tableName string, cancel context.CancelFunc) *Proxy {
+	p := &Proxy{}
+	p.cancel = cancel
+
+	// im going to build up the tcp connectin to mysql protocol
+	remote, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
+	if err != nil {
+		panic(err)
+	}
+	// TODO: refactor so i can provide user credentials
+	local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "localhost", 3306))
+	if err != nil {
+		panic(err)
+	}
+	// create struct that implements interface Client, in ./sql.go
+	type impl struct {
+		respondToHandshakeReq func(req []byte) []byte
+		handleOkResponse      func(ok []byte) []byte
+	}
+	_remote := impl{
+		respondToHandshakeReq: func(b []byte) []byte {
+			_, err := client.Write(b)
+			// read handshake rexponde
+			b = ReadPackets(client, cancel)
+			if err != nil {
+				panic(err)
+			}
+			return b
+		},
+		handleOkResponse: func(b []byte) []byte {
+			_, err := client.Write(b)
+			// read handshake rexponde
+			b = ReadPackets(client, cancel)
+			if err != nil {
+				panic(err)
+			}
+			return b
+		},
+	}
+	_local := impl{
+		respondToHandshakeReq: func(req []byte) []byte {
+			_req, _ := DecodeHandshakeRequest(req)
+			res := HandshakeResponse41{
+				ClientFlag:           _req.GetCapabilities(), // TODO: SHOULD THID BE REAS AS 2 UINT16?
+				MaxPacketSize:        16777215,
+				CharacterSet:         0xff,
+				Filler:               [23]byte{},
+				Username:             "root",
+				AuthResponseLen:      0,
+				AuthResponse:         string([]byte{0xf, 0x47, 0xe1, 0xa0, 0xf6, 0xcc, 0x6d, 0xd1, 0x58, 0x8f, 0x79, 0xe0, 0x63, 0x15, 0xb, 0x37, 0x39, 0x97, 0x7e, 0xbe}),
+				Database:             "",
+				ClientPluginName:     "mysql_native_password",
+				ClientAttributes:     nil,
+				ZstdCompressionLevel: 0,
+			}
+			b, err := EncodeHandshakeResponse(0, &res)
+			return b.Bytes()
+		},
+		handleOkResponse: func(ok []byte) []byte {
+			// nothing to be done here
+			return ok
+		},
+	}
+	//
+	CompleteSimpleHandshakeV10(client, remote, cancel)
+	CompleteSimpleHandshakeV10(client, local, cancel)
+	log.Println("Handshake protocol with remote was successful")
+
+	p.remote = remote
+	p.client = client // TODO: wrap this `c` as to not have raw data
+	p.localDb = local
+	p.tableName = tableName
+	return p
+}
+func (p *Proxy) HandleCommand() {
+	HandleMessage(p.client, p.remote, p.localDb, p.cancel)
+}
+
+// func (p *Proxy) QueryRemote(query string, args ...interface{}) (*sql.Result, error) {
+// 	if p.remote == nil {
+// 		log.Panicf("Error: remote is nil")
+// 	}
+// 	return p.remote.Execute(query, args...)
+// }
+
+func (p *Proxy) CloseProxy() {
+	p.remote.Close()
+	p.client.Close()
+}

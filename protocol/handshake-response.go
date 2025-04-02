@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 )
@@ -117,4 +118,31 @@ func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*byte
 		// err = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
 	}
 	return w, nil
+}
+
+// TODDO: refactor method to be an enum
+func encryptPassword(method string, salt []byte, password string) ([]byte, error) {
+	if method == "mysql_native_password" {
+		// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+		stage1 := sha1.Sum([]byte(password))
+		dub := sha1.Sum(stage1[:])
+		stage2 := sha1.Sum(append(salt, dub[:]...))
+
+		scrambled := make([]byte, sha1.Size)
+		for i := 0; i < sha1.Size; i++ {
+			scrambled[i] = stage1[i] ^ stage2[i]
+		}
+		return scrambled, nil
+	}
+	return []byte{}, fmt.Errorf("Unknown authentication method")
+}
+func xorBytes(a, b []byte) []byte {
+	if len(a) != len(b) {
+		return nil // Return nil if slices have different lengths
+	}
+	result := make([]byte, len(a))
+	for i := range a {
+		result[i] = a[i] ^ b[i]
+	}
+	return result
 }

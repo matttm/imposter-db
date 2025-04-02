@@ -3,7 +3,6 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
-	"io"
 )
 
 // MySql Protocol::HandshakeV10Payload
@@ -25,9 +24,10 @@ type HandshakeV10Payload struct {
 	AuthPluginName      string
 }
 
-func DecodeHandshakeRequest(r io.Reader) (*HandshakeV10Payload, error) {
+func DecodeHandshakeRequest(b []byte) (*HandshakeV10Payload, error) {
 	payload := &HandshakeV10Payload{}
 
+	r := bytes.NewReader(b)
 	payload.ProtocolVersion = ReadByte(r)
 
 	payload.ServerVersion = ReadNullTerminatedString(r)
