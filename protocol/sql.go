@@ -10,31 +10,23 @@ import (
 	"time"
 )
 
-type Client interface {
-	respondToHandshakeReq(req []byte) []byte
-	handleOkResponse(ok []byte) []byte
+type Client struct {
+	respondToHandshakeReq func([]byte) []byte
+	handleOkResponse      func([]byte)
 }
 
-func CompleteSimpleHandshakeV10(remote, client net.Conn, cancel context.CancelFunc) {
+func CompleteSimpleHandshakeV10(remote net.Conn, client Client, cancel context.CancelFunc) {
 	var b []byte
 	// read handshake request
 	b = ReadPackets(remote, cancel)
-	_, err := client.Write(b)
-	// read handshake rexponde
-	b = ReadPackets(client, cancel)
-	if err != nil {
-		panic(err)
-	}
-	_, err = remote.Write(b)
+	b = client.respondToHandshakeReq(b)
+	_, err := remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
 	// read ok packet
 	b = ReadPackets(remote, cancel)
-	_, err = client.Write(b)
-	if err != nil {
-		panic(err)
-	}
+	client.handleOkResponse(b)
 }
 
 // Method for handling messages when handshake has been done
