@@ -51,13 +51,18 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	// }
 	var _local_cb Client
 	_local_cb.respondToHandshakeReq = func(req []byte) []byte {
+		log.Println("=============== START 'respondToHandshakeReq'")
 		_req, _ := DecodeHandshakeRequest(req)
 		log.Println("Decoding HandshakeRequest via docker connection")
-		p, _ := encryptPassword(
+		p, err := encryptPassword(
 			_req.AuthPluginName,
 			append(_req.AuthPluginDataPart1[:], _req.AuthPluginDataPart2...),
 			"mysql_password",
 		)
+		if err != nil {
+			SaveToFile(req, "failed-codings", "authentication-decoding-failure")
+			panic(err)
+		}
 		res := HandshakeResponse41{
 			ClientFlag:           _req.GetCapabilities(),
 			MaxPacketSize:        16777215,
@@ -73,6 +78,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 		}
 		b, _ := EncodeHandshakeResponse(0, &res)
 		log.Println("Encoding HandshakeResponse via docker connection")
+		log.Println("=============== END 'respondToHandshakeReq'")
 		return b.Bytes()
 	}
 	_local_cb.handleOkResponse = func(ok []byte) {

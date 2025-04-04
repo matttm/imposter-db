@@ -4,6 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"time"
+	"unicode/utf8"
 )
 
 var NULL = []byte{0x0}
@@ -112,10 +116,45 @@ func WriteLengthEncodedString(w io.Writer, s string) {
 		panic(err)
 	}
 }
+
 func customPanic(err error) {
 	if err == io.EOF {
 		fmt.Println("Client disconnected")
 		return
 	}
 	panic(err)
+}
+
+func isNonASCIIorEmpty(s string) bool {
+	if len(s) == 0 {
+		return true
+	}
+	for _, r := range s {
+		if r > utf8.RuneSelf {
+			return true
+		}
+	}
+	return false
+}
+
+func SaveToFile(data []byte, newDir, newFilename string) error {
+	currentTime := time.Now()
+	// Create the directory if it doesn't exist
+	err := os.MkdirAll(newDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	newFilename = fmt.Sprintf("%s-%s.capture", newFilename, currentTime.Format("2006.01.02 15:04:05"))
+	// Construct the full file path
+	filePath := filepath.Join(newDir, newFilename)
+
+	// Create the file and write data
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(data)
+	return err
 }

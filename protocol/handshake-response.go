@@ -122,6 +122,9 @@ func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*byte
 
 // TODDO: refactor method to be an enum
 func encryptPassword(method string, salt []byte, password string) ([]byte, error) {
+	if isNonASCIIorEmpty(method) {
+		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
+	}
 	if method == "mysql_native_password" {
 		// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
 		stage1 := sha1.Sum([]byte(password))
@@ -134,7 +137,7 @@ func encryptPassword(method string, salt []byte, password string) ([]byte, error
 		}
 		return scrambled, nil
 	}
-	return []byte{}, fmt.Errorf("Unknown authentication method")
+	return []byte{}, fmt.Errorf("Unknown authentication method: %s", method)
 }
 func xorBytes(a, b []byte) []byte {
 	if len(a) != len(b) {
