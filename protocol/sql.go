@@ -15,17 +15,25 @@ type Client struct {
 	handleOkResponse      func([]byte)
 }
 
+// Function CompleteSimpleHandshakeV10
+//
+// Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
 func CompleteSimpleHandshakeV10(remote net.Conn, client Client, cancel context.CancelFunc) {
 	var b []byte
 	// read handshake request
+	log.Println("Executing callback...")
 	b = ReadPackets(remote, cancel)
+	log.Println("HandshakeRequest read from server")
 	b = client.respondToHandshakeReq(b)
+	log.Println("Executed client callback 'respondToHandshakeReq'")
 	_, err := remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
+	log.Println("Bytes from callback were sent to the server")
 	// read ok packet
 	b = ReadPackets(remote, cancel)
+	log.Println("Packet read from server")
 	client.handleOkResponse(b)
 }
 
