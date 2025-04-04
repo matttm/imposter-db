@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -10,32 +11,19 @@ import (
 	"time"
 )
 
-func CompleteSimpleHandshakeV10(remote, client net.Conn, cancel context.CancelFunc) {
-	var b []byte
-	// read handshake request
-	b = ReadPackets(remote, cancel)
-	_, err := client.Write(b)
-	// read handshake rexponde
-	b = ReadPackets(client, cancel)
-	if err != nil {
-		panic(err)
-	}
-	_, err = remote.Write(b)
-	if err != nil {
-		panic(err)
-	}
-	// read ok packet
-	b = ReadPackets(remote, cancel)
-	_, err = client.Write(b)
-	if err != nil {
-		panic(err)
-	}
+type MessageHandler struct {
+	Capabilities uint32 // provided bby the server
+	ClientFlags  uint32
+	ServerStatus uint32
+	cancel       context.CancelFunc
 }
 
+// func (h *MessageHandler) constructFromPacket(b []byte) (*Packet[Payload], error) {}
+
 // Method for handling messages when handshake has been done
-func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) {
+func (mh *MessageHandler) HandleMessage(client, remote net.Conn, localDb *sql.DB) {
 	// i assume next message is a command
-	packet := ReadPackets(client, cancel)
+	packet := mh.ReadPackets(client)
 	if len(packet) <= 4 {
 		fmt.Println(fmt.Errorf("how is this case evem occuring: %s -- %02x", client.RemoteAddr().String()), packet)
 		return
@@ -82,7 +70,7 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 		if err != nil {
 			panic(err)
 		}
-		packet = ReadPackets(remote, cancel)
+		packet = mh.ReadPackets(remote)
 		_, err = client.Write(packet)
 		if err != nil {
 			panic(err)
@@ -93,8 +81,37 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 	return
 }
 
+// Function that upgrades a tcp connection into a mysql protocol by completing a simple handshake
+func NewMessageHandler(client, remote net.Conn, cancel context.CancelFunc) (*MessageHandler, error) {
+	// NOTE: replace generic forwarding
+	// SetTCPNoDelay(client)
+	// SetTCPNoDelay(remote)
+	mh := &MessageHandler{}
+	mh.cancel = cancel
+	var b []byte
+	// read handshake request
+	b = mh.ReadPackets(remote)
+	_, err := client.Write(b)
+	// read handshake rexponde
+	b = mh.ReadPackets(client)
+	if err != nil {
+		panic(err)
+	}
+	_, err = remote.Write(b)
+	if err != nil {
+		panic(err)
+	}
+	// read ok packet
+	b = mh.ReadPackets(remote)
+	_, err = client.Write(b)
+	if err != nil {
+		panic(err)
+	}
+	return mh, nil
+}
+
 // Reads a connection until there are no bytes to be read ATM
-func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
+func (mh *MessageHandler) ReadPackets(c net.Conn) []byte {
 	packets := []byte{}
 	// hand here, until we have a payload to read
 	payload, err := ReadPacket(c)
@@ -117,7 +134,7 @@ func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 			}
 			if err == io.EOF {
 				log.Println("Closing client connection")
-				cancel()
+				mh.cancel()
 				return packets
 			}
 			panic(err)
@@ -147,36 +164,36 @@ func ReadPacket(c net.Conn) ([]byte, error) {
 }
 
 // TODO: implement async ver
-// func ReadAllMySQLPacketsNonBlocking(conn net.Conn) ([][]byte, error) {
-// 	var packets [][]byte
-// 	buf := make([]byte, 4096)
-// 	offset := 0
-//
-// 	dataChan := make(chan []byte, 1)
-// 	errChan := make(chan error, 1)
-//
-// 	go func() {
-// 		n, err := conn.Read(buf[offset:])
-// 		if err != nil {
-// 			errChan <- err
-// 			return
-// 		}
-// 		dataChan <- buf[:n]
-// 	}()
-//
-// 	select {
-// 	case data := <-dataChan:
-// 		copy(buf[offset:], data)
-// 		offset += len(data)
-// 	case err := <-errChan:
-// 		if err == io.EOF {
-// 			return packets, nil
-// 		}
-// 		return nil, err
-// 	case <-time.After(50 * time.Millisecond): // Timeout to prevent hanging
-// 		return packets, nil
-// 	}
-//
-// 	// Process packets as before...
-// 	return packets, nil
-// }
+func ReadAllMySQLPacketsNonBlocking(conn net.Conn) ([][]byte, error) {
+	var packets [][]byte
+	buf := make([]byte, 4096)
+	offset := 0
+
+	dataChan := make(chan []byte, 1)
+	errChan := make(chan error, 1)
+
+	go func() {
+		n, err := conn.Read(buf[offset:])
+		if err != nil {
+			errChan <- err
+			return
+		}
+		dataChan <- buf[:n]
+	}()
+
+	select {
+	case data := <-dataChan:
+		copy(buf[offset:], data)
+		offset += len(data)
+	case err := <-errChan:
+		if err == io.EOF {
+			return packets, nil
+		}
+		return nil, err
+	case <-time.After(50 * time.Millisecond): // Timeout to prevent hanging
+		return packets, nil
+	}
+
+	// Process packets as before...
+	return packets, nil
+}
