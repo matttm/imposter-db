@@ -12,7 +12,7 @@ type AuthenticationMethod struct {
 
 var authMap map[string]AuthenticationMethod = map[string]AuthenticationMethod{
 	"mysql_native_password": AuthenticationMethod{Fn: sha1Wrapper, Sz: sha1.Size},
-	"caching_sha2_password": AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size},
+	"caching_sha2_password": AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
 }
 
 func sha1Wrapper(data []byte) []byte {

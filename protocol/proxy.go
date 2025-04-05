@@ -67,7 +67,8 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 			panic(err)
 		}
 		res := HandshakeResponse41{
-			ClientFlag:           _req.GetCapabilities(),
+			ClientFlag: 423536135, // TODO: SHOULD THID BE REAS AS 2 UINT16?
+			// ClientFlag:           _req.GetCapabilities(),
 			MaxPacketSize:        16777215,
 			CharacterSet:         0xff,
 			Filler:               [23]byte{},
