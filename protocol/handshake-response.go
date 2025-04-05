@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 )
@@ -125,18 +124,14 @@ func encryptPassword(method string, salt []byte, password string) ([]byte, error
 	if isNonASCIIorEmpty(method) {
 		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
 	}
-	authMap := map[string]func([]byte) []byte{
-		"mysql_native_password": sha1Wrapper,
-		"caching_sha2_password": sha256Wrapper,
-	}
-	if authFunc, ok := authMap["mysql_native_password"]; ok {
+	if authMeth, ok := authMap[method]; ok {
 		// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
-		stage1 := authFunc([]byte(password))
-		dub := authFunc(stage1[:])
-		stage2 := authFunc(append(salt, dub[:]...))
+		stage1 := authMeth.Fn([]byte(password))
+		dub := authMeth.Fn(stage1[:])
+		stage2 := authMeth.Fn(append(salt, dub[:]...))
 
-		scrambled := make([]byte, sha1.Size)
-		for i := 0; i < sha1.Size; i++ {
+		scrambled := make([]byte, authMeth.Sz)
+		for i := 0; i < authMeth.Sz; i++ {
 			scrambled[i] = stage1[i] ^ stage2[i]
 		}
 		return scrambled, nil

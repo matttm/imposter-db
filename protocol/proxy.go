@@ -52,6 +52,9 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	var _local_cb Client
 	_local_cb.respondToHandshakeReq = func(req []byte) []byte {
 		log.Println("=============== START 'respondToHandshakeReq'")
+		// tear off header
+		seq := req[3]
+		req = req[4:]
 		_req, _ := DecodeHandshakeRequest(req)
 		log.Println("Decoding HandshakeRequest via docker connection")
 		p, err := encryptPassword(
@@ -72,17 +75,23 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 			AuthResponseLen:      0,
 			AuthResponse:         string(p),
 			Database:             "",
-			ClientPluginName:     "mysql_native_password",
+			ClientPluginName:     _req.AuthPluginName,
 			ClientAttributes:     nil,
 			ZstdCompressionLevel: 0,
 		}
 		b, _ := EncodeHandshakeResponse(0, &res)
 		log.Println("Encoding HandshakeResponse via docker connection")
 		log.Println("=============== END 'respondToHandshakeReq'")
-		return b.Bytes()
+		return PackPayload(b.Bytes(), seq+byte(1))
 	}
 	_local_cb.handleOkResponse = func(ok []byte) {
 		// nothing to be done here
+		// NOTE: i think i need to remove thise once rremote is going to run too, as to not send dup OK packets
+		_, err := client.Write(ok)
+		// read ok
+		if err != nil {
+			panic(err)
+		}
 	}
 	// CompleteSimpleHandshakeV10(remote, _remote, cancel)
 	CompleteSimpleHandshakeV10(local, _local_cb, cancel)
@@ -106,6 +115,6 @@ func (p *Proxy) HandleCommand() {
 // }
 
 func (p *Proxy) CloseProxy() {
-	p.remote.Close()
+	// p.remote.Close()
 	p.client.Close()
 }

@@ -24,10 +24,11 @@ func BisectPayload(r io.Reader) *PacketHeader {
 	header.SequenceId = ReadByte(r)
 	return header
 }
-func PackPayload(b []byte) []byte {
+func PackPayload(b []byte, seq byte) []byte {
 	h := make([]byte, 4)
 	l := uint32(len(b))
 	binary.LittleEndian.PutUint32(h, l)
+	h[3] = seq
 	return append(h, b...)
 
 }
