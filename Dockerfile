@@ -1,7 +1,7 @@
 #    docker build -t my-mysql .
 #    docker run -d --name my-mysql -p 3306:3306 my-mysql
 # Use the official MySQL image
-FROM mysql:8.0
+FROM mysql:8.0.35
 
 # Set environment variables for MySQL root password
 ENV MYSQL_ROOT_PASSWORD=mypassword

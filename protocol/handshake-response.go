@@ -25,18 +25,10 @@ type HandshakeResponse41 struct {
 func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse41, error) {
 	p := &HandshakeResponse41{}
 	r := bytes.NewReader(b)
-	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
-	// I'll resd them seperately and shift into a uint32
-	var partA, partB uint16
-	err := binary.Read(r, binary.LittleEndian, &partA)
+	err := binary.Read(r, binary.LittleEndian, &p.ClientFlag)
 	if err != nil {
 		panic(err)
 	}
-	err = binary.Read(r, binary.LittleEndian, &partB)
-	if err != nil {
-		panic(err)
-	}
-	p.ClientFlag |= uint32(partB)<<16 | uint32(partA)
 	err = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
 	if err != nil {
 		panic(err)
@@ -77,14 +69,7 @@ func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*byte
 	w := bytes.NewBuffer(b)
 	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
 	// I'll resd them seperately and shift into a uint32
-	var partA, partB uint16
-	partA |= uint16(p.ClientFlag)
-	partB |= uint16(p.ClientFlag >> 16)
-	err := binary.Write(w, binary.LittleEndian, &partA)
-	if err != nil {
-		panic(err)
-	}
-	err = binary.Write(w, binary.LittleEndian, &partB)
+	err := binary.Write(w, binary.LittleEndian, &p.ClientFlag)
 	if err != nil {
 		panic(err)
 	}

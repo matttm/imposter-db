@@ -21,7 +21,7 @@ type Client struct {
 func CompleteSimpleHandshakeV10(remote net.Conn, client Client, cancel context.CancelFunc) {
 	var b []byte
 	// read handshake request
-	log.Println("Executing callback...")
+	log.Println("Entering connection phase...")
 	b = ReadPackets(remote, cancel)
 	log.Println("HandshakeRequest read from server")
 	b = client.respondToHandshakeReq(b)
