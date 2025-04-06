@@ -82,7 +82,7 @@ func Test_Handshake_Response_Password_Encode(t *testing.T) {
 		},
 	}
 	for _, entry := range passwordTable {
-		e, _ := encryptPassword("mysql_native_password", entry.Salt, string(entry.Decoded))
+		e, _ := hashPassword("mysql_native_password", entry.Salt, string(entry.Decoded))
 		assert.Equal(
 			t,
 			entry.Encoded,

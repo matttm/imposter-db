@@ -1,8 +1,11 @@
 package protocol
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/x509"
 )
 
 type AuthenticationMethod struct {
@@ -23,4 +26,16 @@ func sha1Wrapper(data []byte) []byte {
 func sha256Wrapper(data []byte) []byte {
 	sum := sha256.Sum256(data)
 	return sum[:]
+}
+
+func encryptPassword(pubKey, password []byte) []byte {
+	pub, err := x509.ParsePKCS1PublicKey(pubKey)
+	if err != nil {
+		panic("RSA encryption error occured")
+	}
+	e, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pub, password, nil)
+	if err != nil {
+		panic("RSA encryption error occured")
+	}
+	return e
 }

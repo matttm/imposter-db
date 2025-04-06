@@ -15,26 +15,59 @@ type Client struct {
 	handleOkResponse      func([]byte)
 }
 
-// Function CompleteSimpleHandshakeV10
+// Function CompleteHandshakeV10
 //
 // Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
-func CompleteSimpleHandshakeV10(remote net.Conn, client Client, cancel context.CancelFunc) {
+func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, cancel context.CancelFunc) {
+	clientWrite := func(b []byte) {
+		if client == nil {
+			return
+		}
+		_, err := client.Write(b)
+		// read ok
+		if err != nil {
+			panic(err)
+		}
+	}
 	var b []byte
 	// read handshake request
-	log.Println("Entering connection phase...")
+	log.Println("Entering connection phase (without SSL)...")
 	b = ReadPackets(remote, cancel)
 	log.Println("HandshakeRequest read from server")
-	b = client.respondToHandshakeReq(b)
+	// got the salt aNd responded with my scramble
+	b = clientFn.respondToHandshakeReq(b)
 	log.Println("Executed client callback 'respondToHandshakeReq'")
 	_, err := remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
 	log.Println("Bytes from callback were sent to the server")
-	// read ok packet
 	b = ReadPackets(remote, cancel)
 	log.Println("Packet read from server")
-	client.handleOkResponse(b)
+	if isOkPacket(b) {
+		clientWrite(b)
+		return
+	}
+	// if not ok packet, then Prootocol::AuthMoreData
+	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
+	if !(b[4] == 0x01 && b[5] == 0x04) {
+		log.Panicf("perform_full_auth was expected but got %x", b)
+	}
+	// since im not doing an ssl -- ask for rsa public key
+	reqKeyPacket := PackPayload([]byte{0x02}, 3)
+	_, err = remote.Write(reqKeyPacket)
+	if err != nil {
+		panic(err)
+	}
+	rsaPublicKey := ReadPackets(remote, cancel)
+	rsaPublicKey = rsaPublicKey[4:] // removing header
+	e := encryptPassword(rsaPublicKey, []byte("mysql_password"))
+	b = PackPayload(e, 5)
+	_, err = remote.Write(b)
+	if err != nil {
+		panic(err)
+	}
+	_ = ReadPackets(remote, cancel)
 }
 
 // Method for handling messages when handshake has been done

@@ -57,7 +57,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 		req = req[4:]
 		_req, _ := DecodeHandshakeRequest(req)
 		log.Println("Decoding HandshakeRequest via docker connection")
-		p, err := encryptPassword(
+		p, err := hashPassword(
 			_req.AuthPluginName,
 			append(_req.AuthPluginDataPart1[:], _req.AuthPluginDataPart2...),
 			"mysql_password",
@@ -95,7 +95,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 		}
 	}
 	// CompleteSimpleHandshakeV10(remote, _remote, cancel)
-	CompleteSimpleHandshakeV10(local, _local_cb, cancel)
+	CompleteHandshakeV10(local, client, _local_cb, cancel)
 	log.Println("Handshake protocol with remote was successful")
 
 	// p.remote = remote

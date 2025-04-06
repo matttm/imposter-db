@@ -104,8 +104,8 @@ func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*byte
 	return w, nil
 }
 
-// TODDO: refactor method to be an enum
-func encryptPassword(method string, salt []byte, password string) ([]byte, error) {
+// TODO: refactor method to be an enum
+func hashPassword(method string, salt []byte, password string) ([]byte, error) {
 	if isNonASCIIorEmpty(method) {
 		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
 	}

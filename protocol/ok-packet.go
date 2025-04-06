@@ -49,3 +49,11 @@ func DecodeOkPacket(capabilities uint32, r io.Reader) *OKPacket {
 	// Handle the affected rows and last insert ID logic (to be determined by packet content)
 	return p
 }
+
+// Assumes the size includes main packet header
+func isOkPacket(b []byte) bool {
+	if len(b) < 5 {
+		return false
+	}
+	return b[4] == 0x00 || b[4] == 0xfe
+}
