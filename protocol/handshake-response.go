@@ -109,15 +109,33 @@ func hashPassword(method string, salt []byte, password string) ([]byte, error) {
 	if isNonASCIIorEmpty(method) {
 		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
 	}
+	if len(salt) > 20 {
+		salt = salt[:20]
+	}
 	if authMeth, ok := authMap[method]; ok {
-		// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
-		stage1 := authMeth.Fn([]byte(password))
-		dub := authMeth.Fn(stage1[:])
-		stage2 := authMeth.Fn(append(salt, dub[:]...))
+		var scrambled []byte
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+		if method == "mysql_native_password" {
+			// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+			stage1 := authMeth.Fn([]byte(password))
+			dub := authMeth.Fn(stage1[:])
+			stage2 := authMeth.Fn(append(salt, dub[:]...))
 
-		scrambled := make([]byte, authMeth.Sz)
-		for i := 0; i < authMeth.Sz; i++ {
-			scrambled[i] = stage1[i] ^ stage2[i]
+			scrambled = make([]byte, authMeth.Sz)
+			for i := 0; i < authMeth.Sz; i++ {
+				scrambled[i] = stage1[i] ^ stage2[i]
+			}
+		}
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_caching_sha2_authentication_exchanges.html#sect_caching_sha2_info
+		if method == "caching_sha2_password" {
+			stage1 := authMeth.Fn([]byte(password))
+			dub := authMeth.Fn(stage1[:])
+			stage2 := authMeth.Fn(append(dub[:], salt...))
+
+			scrambled = make([]byte, authMeth.Sz)
+			for i := 0; i < authMeth.Sz; i++ {
+				scrambled[i] = stage1[i] ^ stage2[i]
+			}
 		}
 		return scrambled, nil
 	}

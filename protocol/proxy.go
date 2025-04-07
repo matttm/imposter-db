@@ -8,6 +8,8 @@ import (
 	"net"
 )
 
+var CLIENT_CAPABILITIES uint32 = 423536135 | CLIENT_PLUGIN_AUTH | CLIENT_PROTOCOL_41&^CLIENT_CONNECT_ATTRS
+
 type Proxy struct {
 	client    net.Conn
 	remote    net.Conn
@@ -67,7 +69,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 			panic(err)
 		}
 		res := HandshakeResponse41{
-			ClientFlag: 423536135, // TODO: SHOULD THID BE REAS AS 2 UINT16?
+			ClientFlag: CLIENT_CAPABILITIES,
 			// ClientFlag:           _req.GetCapabilities(),
 			MaxPacketSize:        16777215,
 			CharacterSet:         0xff,
@@ -80,7 +82,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 			ClientAttributes:     nil,
 			ZstdCompressionLevel: 0,
 		}
-		b, _ := EncodeHandshakeResponse(0, &res)
+		b, _ := EncodeHandshakeResponse(CLIENT_CAPABILITIES, &res)
 		log.Println("Encoding HandshakeResponse via docker connection")
 		log.Println("=============== END 'respondToHandshakeReq'")
 		return PackPayload(b.Bytes(), seq+byte(1))
