@@ -61,7 +61,8 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	}
 	rsaPublicKey := ReadPackets(remote, cancel)
 	rsaPublicKey = rsaPublicKey[4:] // removing header
-	e := encryptPassword(rsaPublicKey, []byte("mysql_password"))
+	rsaPublicKey = rsaPublicKey[1:] // removing header for AuthMoreData 0x01
+	e := encryptPassword(rsaPublicKey, []byte("mypassword"))
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {

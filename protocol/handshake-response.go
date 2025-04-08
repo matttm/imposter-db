@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 )
 
 // Documentation can be found at https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_packets_protocol_handshake_response.html
@@ -112,6 +113,7 @@ func hashPassword(method string, salt []byte, password string) ([]byte, error) {
 	if len(salt) > 20 {
 		salt = salt[:20]
 	}
+	log.Printf("Hashing password with %x", salt)
 	if authMeth, ok := authMap[method]; ok {
 		var scrambled []byte
 		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html

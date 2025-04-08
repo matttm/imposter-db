@@ -39,6 +39,7 @@ func DecodeHandshakeRequest(b []byte) (*HandshakeV10Payload, error) {
 	if err := binary.Read(r, binary.LittleEndian, &payload.AuthPluginDataPart1); err != nil {
 		return payload, err
 	}
+	// ReadByte(r) // skip this byte as it should be null
 
 	if err := binary.Read(r, binary.LittleEndian, &payload.Filler); err != nil {
 		return payload, err
