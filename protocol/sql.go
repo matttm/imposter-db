@@ -23,18 +23,20 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 		if client == nil {
 			return
 		}
-		_, err := client.Write(b)
+		n, err := client.Write(b)
 		// read ok
 		if err != nil {
 			panic(err)
 		}
+		log.Printf("%d bytes sent to client", n)
 	}
 	var b []byte
 	// read handshake request
 	log.Println("Entering connection phase (without SSL)...")
-	b = ReadPackets(remote, cancel)
+	b, _ = ReadPacket(remote)
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
+	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
 	b = clientFn.respondToHandshakeReq(b)
 	log.Println("Executed client callback 'respondToHandshakeReq'")
 	_, err := remote.Write(b)
@@ -42,10 +44,10 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 		panic(err)
 	}
 	log.Println("Bytes from callback were sent to the server")
-	b = ReadPackets(remote, cancel)
+	b, _ = ReadPacket(remote)
+	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
 	log.Println("Packet read from server")
 	if isOkPacket(b) {
-		clientWrite(b)
 		return
 	}
 	// if not ok packet, then Prootocol::AuthMoreData
@@ -55,13 +57,14 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	}
 	if b[5] == 0x03 {
 		// this is FAST_AUTH_SUCCESS
-		b = ReadPackets(remote, cancel)
 		log.Println("FAST_AUTH_SUCCESS received")
+		b, _ = ReadPacket(remote)
 		if isOkPacket(b) {
+			log.Println("OK packet received")
 			clientWrite(b)
 			return
 		} else {
-			log.Panicln("Received FAST_AUTH_SUCCESS followed by non-OK packet")
+			log.Panic("Received FAST_AUTH_SUCCESS followed by non-OK packet")
 		}
 	}
 	// since im not doing an ssl -- ask for rsa public key
@@ -70,7 +73,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	if err != nil {
 		panic(err)
 	}
-	pem := ReadPackets(remote, cancel)
+	pem, _ := ReadPacket(remote)
 	pem = pem[4:] // removing header
 	pem = pem[1:] // removing header for AuthMoreData 0x01
 	e := encryptPassword(pem, []byte("mypassword"))
@@ -79,7 +82,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	if err != nil {
 		panic(err)
 	}
-	_ = ReadPackets(remote, cancel)
+	_, _ = ReadPacket(remote)
 }
 
 // Method for handling messages when handshake has been done
@@ -89,6 +92,8 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 	if len(packet) <= 4 {
 		return
 	}
+	log.Printf("Received command code %x", packet[4])
+	log.Printf("command pack is %x", packet)
 	cmd := Command(packet[4])
 	switch cmd {
 	case COM_SLEEP:
@@ -194,38 +199,3 @@ func ReadPacket(c net.Conn) ([]byte, error) {
 	packet = append(h, payload...)
 	return packet, nil
 }
-
-// TODO: implement async ver
-// func ReadAllMySQLPacketsNonBlocking(conn net.Conn) ([][]byte, error) {
-// 	var packets [][]byte
-// 	buf := make([]byte, 4096)
-// 	offset := 0
-//
-// 	dataChan := make(chan []byte, 1)
-// 	errChan := make(chan error, 1)
-//
-// 	go func() {
-// 		n, err := conn.Read(buf[offset:])
-// 		if err != nil {
-// 			errChan <- err
-// 			return
-// 		}
-// 		dataChan <- buf[:n]
-// 	}()
-//
-// 	select {
-// 	case data := <-dataChan:
-// 		copy(buf[offset:], data)
-// 		offset += len(data)
-// 	case err := <-errChan:
-// 		if err == io.EOF {
-// 			return packets, nil
-// 		}
-// 		return nil, err
-// 	case <-time.After(50 * time.Millisecond): // Timeout to prevent hanging
-// 		return packets, nil
-// 	}
-//
-// 	// Process packets as before...
-// 	return packets, nil
-// }
