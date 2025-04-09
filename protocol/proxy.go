@@ -36,7 +36,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	// 	panic(err)
 	// }
 	// TODO: refactor so i can provide user credentials
-	local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "localhost", 3306))
+	local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +70,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 		p, err := hashPassword(
 			_req.AuthPluginName,
 			append(_req.AuthPluginDataPart1[:], _req.AuthPluginDataPart2...),
-			"mysql_password",
+			"mypassword",
 		)
 		if err != nil {
 			SaveToFile(req, "failed-codings", "authentication-decoding-failure")

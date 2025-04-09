@@ -59,12 +59,11 @@ func encryptPassword(pemKey, password []byte) []byte {
 		log.Print(err)
 		panic("RSA parsing error occured")
 	}
-
 	rsaPub, ok := pub.(*rsa.PublicKey)
 	if !ok {
 		panic("not an RSA public key")
 	}
-	e, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPub, password, nil)
+	e, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPub, password)
 	if err != nil {
 		log.Print(err)
 		panic("RSA encryption error occured")

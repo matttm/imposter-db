@@ -50,8 +50,19 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	}
 	// if not ok packet, then Prootocol::AuthMoreData
 	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
-	if !(b[4] == 0x01 && b[5] == 0x04) {
-		log.Panicf("perform_full_auth was expected but got %x", b)
+	if b[4] != AUTH_MORE_DATA {
+		log.Panicf("AuthMoreData was expected but got %x", b)
+	}
+	if b[5] == 0x03 {
+		// this is FAST_AUTH_SUCCESS
+		b = ReadPackets(remote, cancel)
+		log.Println("FAST_AUTH_SUCCESS received")
+		if isOkPacket(b) {
+			clientWrite(b)
+			return
+		} else {
+			log.Panicln("Received FAST_AUTH_SUCCESS followed by non-OK packet")
+		}
 	}
 	// since im not doing an ssl -- ask for rsa public key
 	reqKeyPacket := PackPayload([]byte{0x02}, 3)
@@ -59,10 +70,10 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	if err != nil {
 		panic(err)
 	}
-	rsaPublicKey := ReadPackets(remote, cancel)
-	rsaPublicKey = rsaPublicKey[4:] // removing header
-	rsaPublicKey = rsaPublicKey[1:] // removing header for AuthMoreData 0x01
-	e := encryptPassword(rsaPublicKey, []byte("mypassword"))
+	pem := ReadPackets(remote, cancel)
+	pem = pem[4:] // removing header
+	pem = pem[1:] // removing header for AuthMoreData 0x01
+	e := encryptPassword(pem, []byte("mypassword"))
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {
