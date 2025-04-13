@@ -25,6 +25,17 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		}
 		log.Printf("%d bytes sent to client", n)
 	}
+	clientRead := func(_defaultRead []byte) []byte {
+		if client == nil {
+			return _defaultRead
+		}
+		b, err := ReadPacket(client)
+		// read ok
+		if err != nil {
+			panic(err)
+		}
+		return b
+	}
 	var b []byte
 	// read handshake request
 	log.Println("Entering connection phase (without SSL)...")
@@ -32,7 +43,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
-	b = respondToHandshakeReq(b, username, password)
+	b = clientRead(makeHandshakeResponseFromRequest(b, username, password))
 	log.Println("Executed client callback 'respondToHandshakeReq'")
 	_, err := remote.Write(b)
 	if err != nil {
@@ -79,7 +90,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	}
 	_, _ = ReadPacket(remote)
 }
-func respondToHandshakeReq(req []byte, username, password string) []byte {
+func makeHandshakeResponseFromRequest(req []byte, username, password string) []byte {
 	log.Println("=============== START 'respondToHandshakeReq'")
 	// tear off header
 	seq := req[3]
