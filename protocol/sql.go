@@ -10,15 +10,10 @@ import (
 	"time"
 )
 
-type Client struct {
-	respondToHandshakeReq func([]byte) []byte
-	handleOkResponse      func([]byte)
-}
-
 // Function CompleteHandshakeV10
 //
 // Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
-func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, cancel context.CancelFunc) {
+func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
 	clientWrite := func(b []byte) {
 		if client == nil {
 			return
@@ -37,7 +32,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
-	b = clientFn.respondToHandshakeReq(b)
+	b = respondToHandshakeReq(b, username, password)
 	log.Println("Executed client callback 'respondToHandshakeReq'")
 	_, err := remote.Write(b)
 	if err != nil {
@@ -76,13 +71,48 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, clientFn Client, can
 	pem, _ := ReadPacket(remote)
 	pem = pem[4:] // removing header
 	pem = pem[1:] // removing header for AuthMoreData 0x01
-	e := encryptPassword(pem, []byte("mypassword"))
+	e := encryptPassword(pem, []byte(password))
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
 	_, _ = ReadPacket(remote)
+}
+func respondToHandshakeReq(req []byte, username, password string) []byte {
+	log.Println("=============== START 'respondToHandshakeReq'")
+	// tear off header
+	seq := req[3]
+	req = req[4:]
+	_req, _ := DecodeHandshakeRequest(req)
+	log.Println("Decoding HandshakeRequest via docker connection")
+	p, err := hashPassword(
+		_req.AuthPluginName,
+		append(_req.AuthPluginDataPart1[:], _req.AuthPluginDataPart2...),
+		password,
+	)
+	if err != nil {
+		SaveToFile(req, "failed-codings", "authentication-decoding-failure")
+		panic(err)
+	}
+	res := HandshakeResponse41{
+		ClientFlag: CLIENT_CAPABILITIES,
+		// ClientFlag:           _req.GetCapabilities(),
+		MaxPacketSize:        16777215,
+		CharacterSet:         0xff,
+		Filler:               [23]byte{},
+		Username:             username,
+		AuthResponseLen:      uint8(len(p)),
+		AuthResponse:         string(p),
+		Database:             "",
+		ClientPluginName:     _req.AuthPluginName,
+		ClientAttributes:     nil,
+		ZstdCompressionLevel: 0,
+	}
+	b, _ := EncodeHandshakeResponse(CLIENT_CAPABILITIES, &res)
+	log.Println("Encoding HandshakeResponse via docker connection")
+	log.Println("=============== END 'respondToHandshakeReq'")
+	return PackPayload(b.Bytes(), seq+byte(1))
 }
 
 // Method for handling messages when handshake has been done
@@ -93,44 +123,9 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 		return
 	}
 	log.Printf("Received command code %x", packet[4])
-	log.Printf("command pack is %x", packet)
 	cmd := Command(packet[4])
 	switch cmd {
-	case COM_SLEEP:
-	case COM_QUIT:
-	case COM_INIT_DB:
-	case COM_FIELD_LIST:
-	case COM_CREATE_DB:
-	case COM_DROP_DB:
-	case COM_UNUSED_2:
-	case COM_UNUSED_1:
-	case COM_STATISTICS:
-	case COM_UNUSED_4:
-	case COM_CONNECT:
-	case COM_UNUSED_5:
-	case COM_DEBUG:
-	case COM_PING:
-	case COM_TIME:
-	case COM_DELAYED_INSERT:
-	case COM_CHANGE_USER:
-	case COM_BINLOG_DUMP:
-	case COM_TABLE_DUMP:
-	case COM_CONNECT_OUT:
-	case COM_REGISTER_SLAVE:
-	case COM_STMT_PREPARE:
-	case COM_STMT_EXECUTE:
-	case COM_STMT_SEND_LONG_DATA:
-	case COM_STMT_CLOSE:
-	case COM_STMT_RESET:
-	case COM_SET_OPTION:
-	case COM_STMT_FETCH:
-	case COM_DAEMON:
-	case COM_BINLOG_DUMP_GTID:
-	case COM_RESET_CONNECTION:
-	case COM_CLONE:
-	case COM_SUBSCRIBE_GROUP_REPLICATION_STREAM:
-	case COM_END:
-	case COM_QUERY:
+	case COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END, COM_QUERY:
 		fmt.Println("Routing to usual remote")
 		_, err := remote.Write(packet)
 		if err != nil {
@@ -141,6 +136,9 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 		if err != nil {
 			panic(err)
 		}
+	case COM_UNUSED_1, COM_UNUSED_2, COM_UNUSED_4, COM_UNUSED_5:
+		fmt.Println("Unused Command")
+		log.Panicf("packet: %x", packet)
 	default:
 		fmt.Println("Unknown Command")
 	}
@@ -197,5 +195,10 @@ func ReadPacket(c net.Conn) ([]byte, error) {
 		panic(err)
 	}
 	packet = append(h, payload...)
+	//
+	// just check for error and panic here?
+	if packet[4] == ERR_PACKET {
+		panic("Error occured")
+	}
 	return packet, nil
 }

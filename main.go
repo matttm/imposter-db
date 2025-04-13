@@ -19,7 +19,7 @@ type selection struct {
 
 func handleConn(c net.Conn, tableName string) {
 	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
-	p := protocol.InitializeProxy(c, host, tableName, cancel)
+	p := protocol.InitializeProxy(c, host, tableName, cancel, user, pass)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer c.Close()
