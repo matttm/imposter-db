@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	// "database/sql"
 	"fmt"
 	"log"
 	"net"
@@ -17,9 +17,9 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, tableName string, db *sql.DB) {
+func handleConn(c net.Conn, tableName string) {
 	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
-	p := protocol.InitializeProxy(c, host, db, tableName, cancel)
+	p := protocol.InitializeProxy(c, host, tableName, cancel, user, pass)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer c.Close()
@@ -36,8 +36,8 @@ func handleConn(c net.Conn, tableName string, db *sql.DB) {
 }
 func main() {
 	// s := selection{}
-	// log.Printf("Checking for available databases...")
-	//
+	log.Printf("Checking for available databases...")
+
 	// o := InitOverseerConnection()
 	// defer o.Close()
 	// databases := QueryFor(o, SHOW_DB_QUERY)
@@ -58,9 +58,10 @@ func main() {
 	//
 	// inserts := QueryFor(o, insertTemplate)
 	// var localDb *sql.DB = InitLocalDatabase()
-	// defer localDb.Close()
 	// log.Println("Database provider init")
 	// Populate(localDb, s.database[0], createCommand, inserts)
+	// // close db as were going to open it again in raw tcp form
+	// localDb.Close()
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -74,7 +75,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, "APLCTN_RVW_PRD", nil) //  localDb)  // s.table[0], localDb)
+		go handleConn(originSocket, "") //  s.table[0])
 	}
 
 }

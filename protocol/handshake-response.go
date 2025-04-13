@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 )
 
 // Documentation can be found at https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_packets_protocol_handshake_response.html
@@ -25,18 +26,10 @@ type HandshakeResponse41 struct {
 func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse41, error) {
 	p := &HandshakeResponse41{}
 	r := bytes.NewReader(b)
-	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
-	// I'll resd them seperately and shift into a uint32
-	var partA, partB uint16
-	err := binary.Read(r, binary.LittleEndian, &partA)
+	err := binary.Read(r, binary.LittleEndian, &p.ClientFlag)
 	if err != nil {
 		panic(err)
 	}
-	err = binary.Read(r, binary.LittleEndian, &partB)
-	if err != nil {
-		panic(err)
-	}
-	p.ClientFlag |= uint32(partB)<<16 | uint32(partA)
 	err = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
 	if err != nil {
 		panic(err)
@@ -77,14 +70,7 @@ func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*byte
 	w := bytes.NewBuffer(b)
 	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
 	// I'll resd them seperately and shift into a uint32
-	var partA, partB uint16
-	partA |= uint16(p.ClientFlag)
-	partB |= uint16(p.ClientFlag >> 16)
-	err := binary.Write(w, binary.LittleEndian, &partA)
-	if err != nil {
-		panic(err)
-	}
-	err = binary.Write(w, binary.LittleEndian, &partB)
+	err := binary.Write(w, binary.LittleEndian, &p.ClientFlag)
 	if err != nil {
 		panic(err)
 	}
@@ -117,4 +103,53 @@ func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*byte
 		// err = binary.Read(r, binary.LittleEndian, &p.ZstdCompressionLevel)
 	}
 	return w, nil
+}
+
+// TODO: refactor method to be an enum
+func hashPassword(method string, salt []byte, password string) ([]byte, error) {
+	if isNonASCIIorEmpty(method) {
+		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
+	}
+	if len(salt) > 20 {
+		salt = salt[:20]
+	}
+	log.Printf("Hashing password with %x", salt)
+	if authMeth, ok := authMap[method]; ok {
+		var scrambled []byte
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+		if method == "mysql_native_password" {
+			// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+			stage1 := authMeth.Fn([]byte(password))
+			dub := authMeth.Fn(stage1[:])
+			stage2 := authMeth.Fn(append(salt, dub[:]...))
+
+			scrambled = make([]byte, authMeth.Sz)
+			for i := 0; i < authMeth.Sz; i++ {
+				scrambled[i] = stage1[i] ^ stage2[i]
+			}
+		}
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_caching_sha2_authentication_exchanges.html#sect_caching_sha2_info
+		if method == "caching_sha2_password" {
+			stage1 := authMeth.Fn([]byte(password))
+			dub := authMeth.Fn(stage1[:])
+			stage2 := authMeth.Fn(append(dub[:], salt...))
+
+			scrambled = make([]byte, authMeth.Sz)
+			for i := 0; i < authMeth.Sz; i++ {
+				scrambled[i] = stage1[i] ^ stage2[i]
+			}
+		}
+		return scrambled, nil
+	}
+	return []byte{}, fmt.Errorf("Unknown authentication method: %s", method)
+}
+func xorBytes(a, b []byte) []byte {
+	if len(a) != len(b) {
+		return nil // Return nil if slices have different lengths
+	}
+	result := make([]byte, len(a))
+	for i := range a {
+		result[i] = a[i] ^ b[i]
+	}
+	return result
 }

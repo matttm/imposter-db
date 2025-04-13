@@ -3,55 +3,58 @@ package protocol
 import (
 	"context"
 
-	_ "github.com/go-sql-driver/mysql"
-
-	"database/sql"
 	"fmt"
 	"log"
 	"net"
 )
 
+var CLIENT_CAPABILITIES uint32 = CLIENT_LONG_PASSWORD |
+	CLIENT_LONG_FLAG |
+	CLIENT_PROTOCOL_41 |
+	CLIENT_PLUGIN_AUTH |
+	CLIENT_SECURE_CONNECTION | //  CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |
+	CLIENT_TRANSACTIONS |
+	CLIENT_MULTI_RESULTS |
+	CLIENT_MULTI_STATEMENTS |
+	CLIENT_DEPRECATE_EOF
+
 type Proxy struct {
 	client    net.Conn
 	remote    net.Conn
-	localDb   *sql.DB
+	localDb   net.Conn
 	tableName string
-	handler   *MessageHandler
 	cancel    context.CancelFunc
 }
 
-func InitializeProxy(c net.Conn, host string, db *sql.DB, tableName string, cancel context.CancelFunc) *Proxy {
+func InitializeProxy(client net.Conn, host string, tableName string, cancel context.CancelFunc, user, pass string) *Proxy {
 	p := &Proxy{}
 	p.cancel = cancel
-	// TODO: implement handshake protocol here?
-	// i dont think i  can use the below as it would hide the handshake to me
-	// _conn, err := server.NewConn(c, "root", "", NewRemoteHandler(_client, tableName, db))
 
 	// im going to build up the tcp connectin to mysql protocol
+	log.Printf("Connection intializing with %s:%s@%s", user, pass, host)
 	remote, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
 	if err != nil {
 		panic(err)
 	}
-	mh, _ := NewMessageHandler(c, remote, cancel)
+	// local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
+	// if err != nil {
+	// 	panic(err)
+	// }
+	log.Println("Creating raw tcp connection for local")
+	// create struct that implements interface Client, in ./sql.go
+	CompleteHandshakeV10(remote, client, user, pass, cancel)
+	// CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
 	log.Println("Handshake protocol with remote was successful")
 
 	p.remote = remote
-	p.client = c // TODO: wrap this `c` as to not have raw data
+	p.client = client
+	// p.localDb = local
 	p.tableName = tableName
-	p.localDb = db
-	p.handler = mh
 	return p
 }
 func (p *Proxy) HandleCommand() {
-	p.handler.HandleMessage(p.client, p.remote, p.localDb)
+	HandleMessage(p.client, p.remote, p.localDb, p.cancel)
 }
-
-// func (p *Proxy) QueryRemote(query string, args ...interface{}) (*sql.Result, error) {
-// 	if p.remote == nil {
-// 		log.Panicf("Error: remote is nil")
-// 	}
-// 	return p.remote.Execute(query, args...)
-// }
 
 func (p *Proxy) CloseProxy() {
 	p.remote.Close()
