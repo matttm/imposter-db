@@ -75,7 +75,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, "") //  s.table[0])
+		go handleConn(originSocket, "ACO_MS_DB.APLCTN_RVW_PRD") //  s.table[0])
 	}
 
 }

@@ -53,7 +53,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	return p
 }
 func (p *Proxy) HandleCommand() {
-	HandleMessage(p.client, p.remote, p.localDb, p.cancel)
+	HandleMessage(p.client, p.remote, p.localDb, p.tableName, p.cancel)
 }
 
 func (p *Proxy) CloseProxy() {

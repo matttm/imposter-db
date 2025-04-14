@@ -127,7 +127,7 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 }
 
 // Method for handling messages when handshake has been done
-func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) {
+func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, cancel context.CancelFunc) {
 	// i assume next message is a command
 	packet := ReadPackets(client, cancel)
 	if len(packet) <= 4 {
@@ -137,8 +137,14 @@ func HandleMessage(client, remote, localDb net.Conn, cancel context.CancelFunc) 
 	cmd := Command(packet[4])
 	switch cmd {
 	case COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END, COM_QUERY:
-		fmt.Println("Routing to usual remote")
-		_, err := remote.Write(packet)
+		var err error
+		if cmd == COM_QUERY && DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
+			fmt.Println("Routing to local")
+			_, err = localDb.Write(packet)
+		} else {
+			fmt.Println("Routing to remote")
+			_, err = remote.Write(packet)
+		}
 		if err != nil {
 			panic(err)
 		}
