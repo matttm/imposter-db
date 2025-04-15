@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"time"
 )
 
 // Function CompleteHandshakeV10
@@ -96,7 +95,6 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 	seq := req[3]
 	req = req[4:]
 	_req, _ := DecodeHandshakeRequest(req)
-	log.Println("Decoding HandshakeRequest via docker connection")
 	p, err := hashPassword(
 		_req.AuthPluginName,
 		append(_req.AuthPluginDataPart1[:], _req.AuthPluginDataPart2...),
@@ -121,7 +119,6 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 		ZstdCompressionLevel: 0,
 	}
 	b, _ := EncodeHandshakeResponse(CLIENT_CAPABILITIES, &res)
-	log.Println("Encoding HandshakeResponse via docker connection")
 	log.Println("=============== END 'respondToHandshakeReq'")
 	return PackPayload(b.Bytes(), seq+byte(1))
 }
@@ -129,22 +126,24 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 // Method for handling messages when handshake has been done
 func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, cancel context.CancelFunc) {
 	// i assume next message is a command
-	packet := ReadPackets(client, cancel)
+	packet, err := ReadPacket(client)
 	if len(packet) <= 4 {
 		return
+	}
+	if err != nil {
+		panic(err)
 	}
 	log.Printf("Received command code %x", packet[4])
 	cmd := Command(packet[4])
 	switch cmd {
 	case COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END, COM_QUERY:
-		var err error
-		if cmd == COM_QUERY && DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
-			fmt.Println("Routing to local")
-			_, err = localDb.Write(packet)
-		} else {
-			fmt.Println("Routing to remote")
-			_, err = remote.Write(packet)
-		}
+		// if cmd == COM_QUERY && DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
+		// 	fmt.Println("Routing to local")
+		// 	_, err = localDb.Write(packet)
+		// } else {
+		fmt.Println("Routing to remote")
+		_, err = remote.Write(packet)
+		// }
 		if err != nil {
 			panic(err)
 		}
@@ -165,20 +164,10 @@ func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, ca
 // Reads a connection until there are no bytes to be read ATM
 func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 	packets := []byte{}
-	// hand here, until we have a payload to read
-	payload, err := ReadPacket(c)
-	if err != nil {
-		panic(err)
-	}
-	packets = append(packets, payload...)
-	// since we have one pavket, we just want to check if there
-	// are more without hanging, so set a timeout
-	c.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
-	defer c.SetReadDeadline(time.Time{}) // Reset deadline after function exits
 	for {
 		// we continue reading packets until a timeout, meaning
 		// we have no more packets to be read
-		payload, err = ReadPacket(c)
+		payload, err := ReadPacket(c)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				// Timeout occurred, return whatever we've read so far
@@ -191,7 +180,12 @@ func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 			}
 			panic(err)
 		}
+		log.Printf("receiving seq id %d", payload[3])
 		packets = append(packets, payload...)
+		if isOkPacket(payload) {
+			log.Println("Received an OK packet")
+			return packets
+		}
 	}
 }
 

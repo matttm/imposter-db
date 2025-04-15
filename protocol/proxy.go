@@ -13,6 +13,7 @@ var CLIENT_CAPABILITIES uint32 = CLIENT_LONG_PASSWORD |
 	CLIENT_PROTOCOL_41 |
 	CLIENT_PLUGIN_AUTH |
 	CLIENT_SECURE_CONNECTION | //  CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |
+	CLIENT_QUERY_ATTRIBUTES |
 	CLIENT_TRANSACTIONS |
 	CLIENT_MULTI_RESULTS |
 	CLIENT_MULTI_STATEMENTS |
@@ -36,19 +37,19 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	if err != nil {
 		panic(err)
 	}
-	local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
-	if err != nil {
-		panic(err)
-	}
+	// local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
+	// if err != nil {
+	// 	panic(err)
+	// }
 	log.Println("Creating raw tcp connection for local")
 	// create struct that implements interface Client, in ./sql.go
 	CompleteHandshakeV10(remote, client, user, pass, cancel)
-	CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
+	// CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
 	log.Println("Handshake protocol with remote was successful")
 
 	p.remote = remote
 	p.client = client
-	p.localDb = local
+	p.localDb = nil // local
 	p.tableName = tableName
 	return p
 }
