@@ -12,7 +12,11 @@ Have you ever been in development and the needed data is in the test environment
 
 To begin, you must have Go and Docker installed. In case you are on mac, docker won't work by itself, unless you install docker desktop. If you're like me and PREFER CLIs, then install, `colima` which is a container runtime, and can serve as a "docker daemon".
 
-First you'll need to build the docker image and then start a container:
+First, you need to run the docker daemon, which you can do if using Colima by running:
+```
+colima start
+```
+Then, you'll need to build the docker image and then start a container:
 ```
    docker build -t imposter-img .
 
@@ -21,7 +25,13 @@ First you'll need to build the docker image and then start a container:
 
 Then run:
 ```
-go build
+go mod tidy  # to install all dependencies
+
+go build  # creates binary
+```
+Then run ith:
+```
+./imposter-db
 ```
 
 Continue by selecting the schema and table to be spoofed. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
