@@ -51,16 +51,20 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	log.Println("Bytes from callback were sent to the server")
 	b, _ = ReadPacket(remote)
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
-	log.Println("Packet read from server")
+	log.Println("Packet after HandshakeResponse read from server")
 	if isOkPacket(b) {
 		return
+	}
+	// checking for auth switch
+	if b[4] == AUTH_SWITCH_REQUEST {
+		log.Printf("AuthSwitchRequest received")
 	}
 	// if not ok packet, then Prootocol::AuthMoreData
 	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
 	if b[4] != AUTH_MORE_DATA {
 		log.Panicf("AuthMoreData was expected but got %x", b)
 	}
-	if b[5] == 0x03 {
+	if b[5] == FAST_AUTH_SUCCESS {
 		// this is FAST_AUTH_SUCCESS
 		log.Println("FAST_AUTH_SUCCESS received")
 		b, _ = ReadPacket(remote)
@@ -156,7 +160,6 @@ func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, ca
 		}
 	case COM_UNUSED_1, COM_UNUSED_2, COM_UNUSED_4, COM_UNUSED_5:
 		fmt.Println("Unused Command")
-		log.Panicf("packet: %x", packet)
 	default:
 		fmt.Println("Unknown Command")
 	}

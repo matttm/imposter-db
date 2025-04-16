@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"log"
 )
 
@@ -27,14 +28,16 @@ const (
 	AUTH_INITIAL_HANDSHAKE byte = 0x0A // Typically the first packet from the server
 	AUTH_MORE_DATA         byte = 0x01 // More data needed for authentication
 	AUTH_SWITCH_REQUEST    byte = 0xFE // Server requests authentication method switch
+	FAST_AUTH_SUCCESS      byte = 0x03
 	AUTH_SWITCH_RESPONSE   byte = 0x00 // Client response to authentication switch
 )
 
 var authMap map[string]AuthenticationMethod = map[string]AuthenticationMethod{
 	// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
-	"mysql_native_password": AuthenticationMethod{Fn: sha1Wrapper, Sz: sha1.Size},
+	MYSQL_NATIVE_PASSWORD: AuthenticationMethod{Fn: sha1Wrapper, Sz: sha1.Size},
 	// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_caching_sha2_authentication_exchanges.html#sect_caching_sha2_info
-	"caching_sha2_password": AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
+	CACHING_SHA2_PASSWORD: AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
+	SHA256_PASSWORD:       AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
 }
 
 func sha1Wrapper(data []byte) []byte {
@@ -69,4 +72,43 @@ func encryptPassword(pemKey, password []byte) []byte {
 		panic("RSA encryption error occured")
 	}
 	return e
+}
+
+// TODO: refactor method to be an enum
+func hashPassword(method string, salt []byte, password string) ([]byte, error) {
+	if isNonASCIIorEmpty(method) {
+		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
+	}
+	if len(salt) > 20 {
+		salt = salt[:20]
+	}
+	log.Printf("Hashing password with %x", salt)
+	if authMeth, ok := authMap[method]; ok {
+		var scrambled []byte
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+		if method == "mysql_native_password" {
+			// https://dev.mysql.com/doc/dev/mysql-server/8.0.40/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
+			stage1 := authMeth.Fn([]byte(password))
+			dub := authMeth.Fn(stage1[:])
+			stage2 := authMeth.Fn(append(salt, dub[:]...))
+
+			scrambled = make([]byte, authMeth.Sz)
+			for i := 0; i < authMeth.Sz; i++ {
+				scrambled[i] = stage1[i] ^ stage2[i]
+			}
+		}
+		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_caching_sha2_authentication_exchanges.html#sect_caching_sha2_info
+		if method == "caching_sha2_password" {
+			stage1 := authMeth.Fn([]byte(password))
+			dub := authMeth.Fn(stage1[:])
+			stage2 := authMeth.Fn(append(dub[:], salt...))
+
+			scrambled = make([]byte, authMeth.Sz)
+			for i := 0; i < authMeth.Sz; i++ {
+				scrambled[i] = stage1[i] ^ stage2[i]
+			}
+		}
+		return scrambled, nil
+	}
+	return []byte{}, fmt.Errorf("Unknown authentication method: %s", method)
 }

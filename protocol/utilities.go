@@ -158,3 +158,13 @@ func SaveToFile(data []byte, newDir, newFilename string) error {
 	_, err = file.Write(data)
 	return err
 }
+func xorBytes(a, b []byte) []byte {
+	if len(a) != len(b) {
+		return nil // Return nil if slices have different lengths
+	}
+	result := make([]byte, len(a))
+	for i := range a {
+		result[i] = a[i] ^ b[i]
+	}
+	return result
+}

@@ -62,7 +62,7 @@ func isOkPacket(b []byte) bool {
 		return true
 	}
 	// TODO:  HECK THIS
-	if b[4] == EOF_PACKET && len(b) > 9 {
+	if b[4] == EOF_PACKET && len(b) < 11 {
 		// eof packet
 		return true
 	}
