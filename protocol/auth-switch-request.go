@@ -1,7 +1,7 @@
 package protocol
 
 import (
-	"io"
+	"bytes"
 )
 
 // doc https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_auth_switch_request.html
@@ -11,11 +11,11 @@ type AuthSwitchRequest struct {
 	pluginData string
 }
 
-func DecodeAuthSwitchRequest(capabilities uint32, r io.Reader) *AuthSwitchRequest {
+func DecodeAuthSwitchRequest(capabilities uint32, b []byte) *AuthSwitchRequest {
+	r := bytes.NewReader(b)
 	p := &AuthSwitchRequest{}
 	p.status = ReadByte(r)
 	p.pluginName = ReadNullTerminatedString(r)
-	p.pluginData = ReadFixedLengthString(r)
-
+	p.pluginData = ReadStringEOF(r)
 	return p
 }

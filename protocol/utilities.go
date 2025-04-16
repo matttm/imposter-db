@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -84,6 +85,10 @@ func ReadFixedLengthString(r io.Reader, n uint64) string {
 	}
 	return string(s)
 }
+func ReadStringEOF(r *bytes.Reader) string {
+	return ReadFixedLengthString(r, uint64(r.Len()))
+}
+
 func ReadByte(r io.Reader) byte {
 	b := make([]byte, 1)
 	_, err := r.Read(b)

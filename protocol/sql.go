@@ -58,6 +58,14 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	// checking for auth switch
 	if b[4] == AUTH_SWITCH_REQUEST {
 		log.Printf("AuthSwitchRequest received")
+		switchRequest := DecodeAuthSwitchRequest(CLIENT_CAPABILITIES, b[4:])
+		hash, _ := hashPassword(
+			switchRequest.pluginName,
+			[]byte(switchRequest.pluginData),
+			password,
+		)
+		b = EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)})
+		clientWrite(b)
 	}
 	// if not ok packet, then Prootocol::AuthMoreData
 	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
