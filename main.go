@@ -1,13 +1,12 @@
 package main
 
 import (
-	"context"
-	// "database/sql"
 	"fmt"
 	"log"
 	"net"
+	"strings"
 
-	"github.com/matttm/imposter-db/protocol"
+	"github.com/go-mysql-org/go-mysql/client"
 )
 
 var ()
@@ -17,51 +16,51 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, tableName string) {
-	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
-	p := protocol.InitializeProxy(c, host, tableName, cancel, user, pass)
+func handleConn(c net.Conn, tableName string, db *client.Conn) {
+	p := InitializeProxy(c, tableName, db)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
-	// defer c.Close()
-	defer p.CloseProxy()
+	// defer p.CloseProxy()
 	for {
-		select {
-		case <-ctx.Done():
-			return // Exit loop when context is done
-		// TODO: add monitoring here
-		default:
-			p.HandleCommand()
+		if err := p.server.HandleCommand(); err != nil {
+			if strings.Contains(err.Error(), "connection closed") {
+				continue
+			}
+			panic(err)
 		}
 	}
 }
 func main() {
-	// s := selection{}
-	// log.Printf("Checking for available databases...")
-	//
-	// o := InitOverseerConnection()
-	// defer o.Close()
-	// databases := QueryFor(o, SHOW_DB_QUERY)
-	// s.database = PromptSelection("Choose database", databases)
-	// log.Printf("You chose %s", s.database[0])
-	//
-	// table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
-	// s.table = PromptSelection("Choose table", table)
-	// log.Printf("You chose %s", s.table[0])
-	//
-	// createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
-	// columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
-	//
-	// log.Println(createCommand)
-	// log.Println(columns)
-	//
-	// insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-	//
-	// inserts := QueryFor(o, insertTemplate)
-	// var localDb *sql.DB = InitLocalDatabase()
-	// log.Println("Database provider init")
-	// Populate(localDb, s.database[0], createCommand, inserts)
-	// // close db as were going to open it again in raw tcp form
-	// localDb.Close()
+	s := selection{}
+	log.Printf("Checking for available databases...")
+
+	o := InitOverseerConnection()
+	defer o.Close()
+	databases := QueryFor(o, SHOW_DB_QUERY)
+	s.database = PromptSelection("Choose database", databases)
+	log.Printf("You chose %s", s.database[0])
+
+	table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
+	s.table = PromptSelection("Choose table", table)
+	log.Printf("You chose %s", s.table[0])
+
+	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
+	columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
+
+	log.Println(createCommand)
+	log.Println(columns)
+
+	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
+	log.Println(insertTemplate)
+
+	inserts := QueryFor(o, insertTemplate)
+	for _, v := range inserts {
+		log.Println(v)
+	}
+	var localDb *client.Conn = InitLocalDatabase()
+	defer localDb.Close()
+	log.Println("Database provider init")
+	Populate(localDb, s.database[0], createCommand, inserts)
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -75,7 +74,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, "") // fmt.Sprintf("%s.%s", s.database[0], s.table[0]))
+		go handleConn(originSocket, s.table[0], localDb)
 	}
 
 }

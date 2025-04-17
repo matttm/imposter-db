@@ -2,4 +2,3 @@ main
 imposter-db
 .env*
 *.env
-*.pcapng
