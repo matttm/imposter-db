@@ -53,6 +53,7 @@ func DecodeOkPacket(capabilities uint32, r io.Reader) *OKPacket {
 // Assumes the size includes main packet header
 //
 // https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_basic_ok_packet.html
+// TODO: handle deprecation eof flag and intermediate eof
 func isOkPacket(b []byte) bool {
 	if len(b) < 5 {
 		return false

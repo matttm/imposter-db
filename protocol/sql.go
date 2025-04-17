@@ -55,18 +55,24 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	if isOkPacket(b) {
 		return
 	}
+	// TODO: spend more ti e on this case
 	// checking for auth switch
 	if b[4] == AUTH_SWITCH_REQUEST {
 		log.Printf("AuthSwitchRequest received")
 		switchRequest := DecodeAuthSwitchRequest(CLIENT_CAPABILITIES, b[4:])
-		hash, _ := hashPassword(
+		hash, err := hashPassword(
 			switchRequest.pluginName,
 			[]byte(switchRequest.pluginData),
 			password,
 		)
-		b = EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)})
-		clientWrite(b)
+		if err != nil {
+			panic(err)
+		}
+		b = []byte{}
+		b = append(b, EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)}).Bytes()...)
+		clientWrite(PackPayload(b, 3))
 	}
+	b = clientRead(nil)
 	// if not ok packet, then Prootocol::AuthMoreData
 	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
 	if b[4] != AUTH_MORE_DATA {
@@ -150,13 +156,13 @@ func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, ca
 	switch cmd {
 	case COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END, COM_QUERY:
 		var queried net.Conn
-		if cmd == COM_QUERY && DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
-			fmt.Println("Routing to local")
-			queried = localDb
-		} else {
-			fmt.Println("Routing to remote")
-			queried = remote
-		}
+		// if cmd == COM_QUERY && DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
+		// 	fmt.Println("Routing to local")
+		// 	queried = localDb
+		// } else {
+		// 	fmt.Println("Routing to remote")
+		queried = remote
+		// }
 		_, err = queried.Write(packet)
 		if err != nil {
 			panic(err)

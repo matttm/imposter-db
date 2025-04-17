@@ -83,6 +83,7 @@ func hashPassword(method string, salt []byte, password string) ([]byte, error) {
 		salt = salt[:20]
 	}
 	log.Printf("Hashing password with %x", salt)
+	log.Printf("Hashing password %s via %s method", password, method)
 	if authMeth, ok := authMap[method]; ok {
 		var scrambled []byte
 		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
@@ -98,7 +99,7 @@ func hashPassword(method string, salt []byte, password string) ([]byte, error) {
 			}
 		}
 		// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_caching_sha2_authentication_exchanges.html#sect_caching_sha2_info
-		if method == "caching_sha2_password" {
+		if method == "caching_sha2_password" || method == SHA256_PASSWORD {
 			stage1 := authMeth.Fn([]byte(password))
 			dub := authMeth.Fn(stage1[:])
 			stage2 := authMeth.Fn(append(dub[:], salt...))
