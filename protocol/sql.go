@@ -166,7 +166,7 @@ func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, ca
 		}
 	case COM_QUERY:
 		var queried net.Conn
-		// if cmd == COM_QUERY && DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
+		// if DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
 		// 	fmt.Println("Routing to local")
 		// 	queried = localDb
 		// } else {

@@ -37,11 +37,11 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	if err != nil {
 		panic(err)
 	}
-	// local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// log.Println("Creating raw tcp connection for local")
+	local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
+	if err != nil {
+		panic(err)
+	}
+	log.Println("Creating raw tcp connection for local")
 	// create struct that implements interface Client, in ./sql.go
 	CompleteHandshakeV10(remote, client, user, pass, cancel)
 	// CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
@@ -49,7 +49,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 
 	p.remote = remote
 	p.client = client
-	// p.localDb = local
+	p.localDb = local
 	p.tableName = tableName
 	return p
 }
@@ -60,5 +60,5 @@ func (p *Proxy) HandleCommand() {
 func (p *Proxy) CloseProxy() {
 	p.remote.Close()
 	p.client.Close()
-	// p.localDb.Close()
+	p.localDb.Close()
 }
