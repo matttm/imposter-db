@@ -5,7 +5,7 @@
 This program acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
 > [!NOTE]
-> This proxy has been written, with consideration of most cient versiions in mind. With that being said though, most testing has been with clients supporting at least the newer 4.1 version protocol.
+> This proxy has been written, with consideration of most cient versions in mind. With that being said though, most testing has been with clients supporting at least the newer 4.1 version protocol.
 >
 > if you do find an issue, though, please document it well and raise an issue.
 
