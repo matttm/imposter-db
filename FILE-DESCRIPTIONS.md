@@ -1,5 +1,5 @@
 
-
+```
 ├── Dockerfile -- Defines the steps to build a Docker image for the empty spoofed db
 ├── README.md
 ├── database.go -- Contains the core logic for interacting with the databases during init
@@ -35,3 +35,4 @@
 ├── sql-manipulator_test.go.ignore
 ├── update-dbeaver-utan5.pcapng
 └── view.go -- Contains logix for running the TUI
+```
