@@ -5,7 +5,9 @@
 This program acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
 > [!NOTE]
-> The `main` branch uses a third-party library for the mysql protocol and is minimally functional, meaning it breaks in some scenarios. Because of this, I am implementing the mysql  protocol on branch `crashing-on-update-bug`, to resolve these issues. Follow PR #2 to keep informed.
+> This proxy has been written, with consideration of most cient versiions in mind. With that being said though, most testing has been with clients supporting at least the newer 4.1 version protocol.
+>
+> if you do find an issue, though, please document it well and raise an issue.
 
 ## Motivation.
 
@@ -32,34 +34,31 @@ go mod tidy  # to install all dependencies
 
 go build  # creates binary
 ```
-Then run ith:
+Before running the program, you need to export the following variables into the environment of the terminal that will be running the proxy:
+```
+export DB_HOST=""
+export DB_USER=""
+export DB_PASS=""
+export DB_PORT=""
+export DB_NAME=""
+```
+These variables should be the information you normally use to correct directly to the remote
+
+Then run it with:
 ```
 ./imposter-db
 ```
 
-Continue by selecting the schema and table to be spoofed. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
+Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
 Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the following credentials:
 ```
 host -  127.0.0.1
 port - 3307
-username - root
-password - "" (empty string)
+username - USER -- where USER is the user of the remote database?
+password - PASS -- where PASS is the password of the above user in the remote database
 ```
 
-For instance, you can enter these into a DBMS to view the spoofed database or you can use them when establishing a database connection programmatically , so this might look like:
-```
-host: '127.0.0.1',
-user: 'root',
-password: '',
-database: 'my_db',  // your actual db name
-port: 3307,
-```
-
-> [!CAUTION]
-> This currently not compatible with Sequelize. I've found the best experience to be when using a raw driver/connector without an ORM. If you find an issue, file it!
->
-> I have begun writing my own codec on another brsnch.
 
 ## Authors
 
