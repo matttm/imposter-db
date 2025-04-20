@@ -87,11 +87,6 @@ Here's a flow chart depicting the architecture of what the proxy does:
              ^  |          |  ^
              |  | Response |  |
              +--+----------+--+
-                \        /
-                 \      /
-                  \    /
-                   \  /
-                    \/
 ```
 
 ## Authors
