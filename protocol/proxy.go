@@ -20,33 +20,45 @@ var CLIENT_CAPABILITIES uint32 = CLIENT_LONG_PASSWORD |
 	CLIENT_DEPRECATE_EOF
 
 type Proxy struct {
-	client    net.Conn
-	remote    net.Conn
-	localDb   net.Conn
-	tableName string
-	cancel    context.CancelFunc
+	client      net.Conn
+	clientFlags uint32
+	remote      net.Conn
+	localDb     net.Conn
+	tableName   string
+	cancel      context.CancelFunc
 }
 
 func InitializeProxy(client net.Conn, host string, tableName string, cancel context.CancelFunc, user, pass string) *Proxy {
 	p := &Proxy{}
 	p.cancel = cancel
 
+	var remote net.Conn
+	var local net.Conn
 	// im going to build up the tcp connectin to mysql protocol
 	log.Printf("Connection intializing with %s:%s@%s", user, pass, host)
 	remote, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
 	if err != nil {
 		panic(err)
 	}
-	local, err := net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
-	if err != nil {
-		panic(err)
-	}
-	log.Println("Creating raw tcp connection for local")
+	// local, err = net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// log.Println("Creating raw tcp connection for local")
 	// create struct that implements interface Client, in ./sql.go
-	CompleteHandshakeV10(remote, client, user, pass, cancel)
-	// CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
+	// TODO: GET client flags and use them in following connections
+	_, p.clientFlags = CompleteHandshakeV10(remote, client, user, pass, cancel)
 	log.Println("Handshake protocol with remote was successful")
+	// CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
+	// log.Println("Handshake protocol with local was successful")
 
+	log.Printf("--------------flags--------------")
+	log.Printf("Flag DEPRECATE_EOF set: %t", p.clientFlags&CLIENT_DEPRECATE_EOF != 0)
+	log.Printf("Flag PROTOCOL 41   set: %t", p.clientFlags&CLIENT_PROTOCOL_41 != 0)
+	log.Printf("Flag SESSION TRACK set: %t", p.clientFlags&CLIENT_SESSION_TRACK != 0)
+	log.Printf("Flag PLUGIN AUTH   set: %t", p.clientFlags&CLIENT_PLUGIN_AUTH != 0)
+	log.Printf("Flag SECURE CONN   set: %t", p.clientFlags&CLIENT_SECURE_CONNECTION != 0)
+	log.Printf("--------------flags--------------")
 	p.remote = remote
 	p.client = client
 	p.localDb = local
@@ -54,7 +66,7 @@ func InitializeProxy(client net.Conn, host string, tableName string, cancel cont
 	return p
 }
 func (p *Proxy) HandleCommand() {
-	HandleMessage(p.client, p.remote, p.localDb, p.tableName, p.cancel)
+	HandleMessage(p.clientFlags, p.client, p.remote, p.localDb, p.tableName, p.cancel)
 }
 
 func (p *Proxy) CloseProxy() {

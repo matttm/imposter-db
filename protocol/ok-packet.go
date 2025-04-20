@@ -62,8 +62,13 @@ func isOkPacket(b []byte) bool {
 		// ok packet
 		return true
 	}
+	// NOTE: added this case as i was getting weird behavior between versions
+	if b[4] == EOF_PACKET && len(b) > 7 {
+		// ok packet
+		return true
+	}
 	// TODO:  HECK THIS
-	if b[4] == EOF_PACKET && len(b) < 11 {
+	if b[4] == EOF_PACKET && len(b) < 9 {
 		// eof packet
 		return true
 	}

@@ -22,13 +22,14 @@ type HandshakeResponse41 struct {
 	ZstdCompressionLevel   uint8
 }
 
-func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse41, error) {
+func DecodeHandshakeResponse(b []byte) (*HandshakeResponse41, error) {
 	p := &HandshakeResponse41{}
 	r := bytes.NewReader(b)
 	err := binary.Read(r, binary.LittleEndian, &p.ClientFlag)
 	if err != nil {
 		panic(err)
 	}
+	capabilities := p.ClientFlag // TODO: refactor
 	err = binary.Read(r, binary.LittleEndian, &p.MaxPacketSize)
 	if err != nil {
 		panic(err)
@@ -64,11 +65,10 @@ func DecodeHandshakeResponse(capabilities uint32, b []byte) (*HandshakeResponse4
 	}
 	return p, nil
 }
-func EncodeHandshakeResponse(capabilities uint32, p *HandshakeResponse41) (*bytes.Buffer, error) {
+func EncodeHandshakeResponse(p *HandshakeResponse41) (*bytes.Buffer, error) {
 	var b []byte
 	w := bytes.NewBuffer(b)
-	// to mske backwsrds compatable, flags are stored in 2 16-bit parts, so
-	// I'll resd them seperately and shift into a uint32
+	capabilities := p.ClientFlag
 	err := binary.Write(w, binary.LittleEndian, &p.ClientFlag)
 	if err != nil {
 		panic(err)

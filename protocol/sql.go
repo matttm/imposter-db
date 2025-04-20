@@ -12,7 +12,9 @@ import (
 // Function CompleteHandshakeV10
 //
 // Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
-func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
+func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) (uint32, uint32) {
+	var serverFlags uint32
+	var clientFlags uint32
 	clientWrite := func(b []byte) {
 		if client == nil {
 			return
@@ -43,6 +45,12 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	// got the salt aNd responded with my scramble
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
 	b = clientRead(makeHandshakeResponseFromRequest(b, username, password))
+	// NOTE: TRIAL RUN: i think i need to get client fields here
+	if client != nil {
+		_response, _ := DecodeHandshakeResponse(b[4:])
+		clientFlags = _response.ClientFlag
+	}
+	//
 	log.Println("Executed client callback 'respondToHandshakeReq'")
 	_, err := remote.Write(b)
 	if err != nil {
@@ -53,9 +61,9 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
 	log.Println("Packet after HandshakeResponse read from server")
 	if isOkPacket(b) {
-		return
+		return serverFlags, clientFlags
 	}
-	// TODO: spend more ti e on this case
+	// TODO: spend more time on this case
 	// checking for auth switch
 	if b[4] == AUTH_SWITCH_REQUEST {
 		log.Printf("AuthSwitchRequest received")
@@ -72,7 +80,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		b = append(b, EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)}).Bytes()...)
 		clientWrite(PackPayload(b, 3))
 	}
-	b = clientRead(nil)
+	// b = clientRead(nil)
 	// if not ok packet, then Prootocol::AuthMoreData
 	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
 	if b[4] != AUTH_MORE_DATA {
@@ -85,7 +93,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		if isOkPacket(b) {
 			log.Println("OK packet received")
 			clientWrite(b)
-			return
+			return serverFlags, clientFlags
 		} else {
 			log.Panic("Received FAST_AUTH_SUCCESS followed by non-OK packet")
 		}
@@ -106,6 +114,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		panic(err)
 	}
 	_, _ = ReadPacket(remote)
+	return serverFlags, clientFlags
 }
 func makeHandshakeResponseFromRequest(req []byte, username, password string) []byte {
 	log.Println("=============== START 'respondToHandshakeReq'")
@@ -136,13 +145,13 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 		ClientAttributes:     nil,
 		ZstdCompressionLevel: 0,
 	}
-	b, _ := EncodeHandshakeResponse(CLIENT_CAPABILITIES, &res)
+	b, _ := EncodeHandshakeResponse(&res)
 	log.Println("=============== END 'respondToHandshakeReq'")
 	return PackPayload(b.Bytes(), seq+byte(1))
 }
 
 // Method for handling messages when handshake has been done
-func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, cancel context.CancelFunc) {
+func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofedTableName string, cancel context.CancelFunc) {
 	// i assume next message is a command
 	packet, err := ReadPacket(client)
 	if len(packet) <= 4 {
@@ -154,7 +163,8 @@ func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, ca
 	log.Printf("Received command code %x", packet[4])
 	cmd := Command(packet[4])
 	switch cmd {
-	case COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END:
+	case COM_QUIT:
+	case COM_SLEEP, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END:
 		_, err = remote.Write(packet)
 		if err != nil {
 			panic(err)
@@ -183,12 +193,20 @@ func HandleMessage(client, remote, localDb net.Conn, spoofedTableName string, ca
 		if err != nil {
 			panic(err)
 		}
-		// getting rows
-		packet = ReadPackets(queried, cancel)
-		_, err = client.Write(packet)
-		if err != nil {
-			panic(err)
+		if clientFlags&CLIENT_DEPRECATE_EOF != 0 {
+		} else {
+			// this case is when a client is not using eof deperecated
+			// so in this instance, when doing a query, the server sends 2 EOFs--an intermediate one following
+			// the fieldset and one more following the rpws
+			//
+			// getting rows
+			packet = ReadPackets(queried, cancel)
+			_, err = client.Write(packet)
+			if err != nil {
+				panic(err)
+			}
 		}
+		log.Println("Finished query handling")
 	case COM_UNUSED_1, COM_UNUSED_2, COM_UNUSED_4, COM_UNUSED_5:
 		fmt.Println("Unused Command")
 	default:
