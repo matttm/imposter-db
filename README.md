@@ -58,7 +58,41 @@ port - 3307
 username - USER -- where USER is the user of the remote database?
 password - PASS -- where PASS is the password of the above user in the remote database
 ```
+# Architecture
 
+Here's a flow chart depicting the architecture of what the proxy does:
+```
++---------+      +---------+
+| Client  |------>| Proxy   |
++---------+      +---------+
+                     |
+                     | Analyzes Request Content
+                     V
+               +------------------+
+               | Content Analysis |
+               +------------------+
+                     |
+                     | Extracts Table Name
+                     V
+               +------------------+
+               | Request Routing  |
+               +------------------+
+                    |          |
+    everything rlse |          | spoofed table
+                    V          V
+        +-----------+      +-----------+
+        | remote db |      | local db  |
+        |           |      |           |
+        +-----------+      +-----------+
+             ^  |          |  ^
+             |  | Response |  |
+             +--+----------+--+
+                \        /
+                 \      /
+                  \    /
+                   \  /
+                    \/
+```
 
 ## Authors
 
