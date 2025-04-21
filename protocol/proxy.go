@@ -28,29 +28,26 @@ type Proxy struct {
 	cancel      context.CancelFunc
 }
 
-func InitializeProxy(client net.Conn, host string, tableName string, cancel context.CancelFunc, user, pass string) *Proxy {
+func InitializeProxy(client net.Conn, host string, schema, tableName string, cancel context.CancelFunc, user, pass string) *Proxy {
 	p := &Proxy{}
 	p.cancel = cancel
 
 	var remote net.Conn
 	var local net.Conn
-	// im going to build up the tcp connectin to mysql protocol
-	log.Printf("Connection intializing with %s:%s@%s", user, pass, host)
-	remote, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
-	if err != nil {
-		panic(err)
+	connect := func(f *uint32, schema, host, user, pass string, _client net.Conn) net.Conn {
+		// im going to build up the tcp connectin to mysql protocol
+		log.Printf("Connection intializing with %s:%s@%s", user, pass, host)
+		r, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
+		if err != nil {
+			panic(err)
+		}
+		CompleteHandshakeV10(f, schema, r, _client, user, pass, cancel)
+		return r
 	}
-	// local, err = net.Dial("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", 3306))
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// log.Println("Creating raw tcp connection for local")
-	// create struct that implements interface Client, in ./sql.go
-	// TODO: GET client flags and use them in following connections
-	_, p.clientFlags = CompleteHandshakeV10(remote, client, user, pass, cancel)
+	local = connect(&CLIENT_CAPABILITIES, schema, "127.0.0.1", "root", "mypassword", nil)
+
+	remote = connect(&p.clientFlags, schema, host, user, pass, client)
 	log.Println("Handshake protocol with remote was successful")
-	// CompleteHandshakeV10(local, nil, "root", "mypassword", cancel)
-	// log.Println("Handshake protocol with local was successful")
 
 	log.Printf("--------------flags--------------")
 	log.Printf("Flag DEPRECATE_EOF set: %t", p.clientFlags&CLIENT_DEPRECATE_EOF != 0)

@@ -12,9 +12,7 @@ import (
 // Function CompleteHandshakeV10
 //
 // Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
-func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) (uint32, uint32) {
-	var serverFlags uint32
-	var clientFlags uint32
+func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
 	clientWrite := func(b []byte) {
 		if client == nil {
 			return
@@ -26,15 +24,16 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		}
 		log.Printf("%d bytes sent to client", n)
 	}
-	clientRead := func(_defaultRead []byte) []byte {
+	clientRead := func(f func() []byte) []byte {
 		if client == nil {
-			return _defaultRead
+			return f()
 		}
 		b, err := ReadPacket(client)
 		// read ok
 		if err != nil {
 			panic(err)
 		}
+		log.Printf("%d bytes read from client", len(b))
 		return b
 	}
 	var b []byte
@@ -44,24 +43,26 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
-	b = clientRead(makeHandshakeResponseFromRequest(b, username, password))
+	// TODO: REFACTOR CLOSURE
+	lazy := func() []byte { return makeHandshakeResponseFromRequest(f, schema, b, username, password) }
+	b = clientRead(lazy)
 	// NOTE: TRIAL RUN: i think i need to get client fields here
 	if client != nil {
 		_response, _ := DecodeHandshakeResponse(b[4:])
-		clientFlags = _response.ClientFlag
+		*f = _response.ClientFlag
 	}
 	//
-	log.Println("Executed client callback 'respondToHandshakeReq'")
+	log.Println("Sending HandshakeResponse")
 	_, err := remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
-	log.Println("Bytes from callback were sent to the server")
 	b, _ = ReadPacket(remote)
-	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
-	log.Println("Packet after HandshakeResponse read from server")
+	log.Printf("%d bytes read from the server", len(b))
 	if isOkPacket(b) {
-		return serverFlags, clientFlags
+		clientWrite(b)
+		log.Println("Ok packet sent to client")
+		return
 	}
 	// TODO: spend more time on this case
 	// checking for auth switch
@@ -93,7 +94,7 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		if isOkPacket(b) {
 			log.Println("OK packet received")
 			clientWrite(b)
-			return serverFlags, clientFlags
+			return
 		} else {
 			log.Panic("Received FAST_AUTH_SUCCESS followed by non-OK packet")
 		}
@@ -114,9 +115,9 @@ func CompleteHandshakeV10(remote net.Conn, client net.Conn, username, password s
 		panic(err)
 	}
 	_, _ = ReadPacket(remote)
-	return serverFlags, clientFlags
+	return
 }
-func makeHandshakeResponseFromRequest(req []byte, username, password string) []byte {
+func makeHandshakeResponseFromRequest(f *uint32, schema string, req []byte, username, password string) []byte {
 	log.Println("=============== START 'respondToHandshakeReq'")
 	// tear off header
 	seq := req[3]
@@ -132,7 +133,7 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 		panic(err)
 	}
 	res := HandshakeResponse41{
-		ClientFlag: CLIENT_CAPABILITIES,
+		ClientFlag: *f,
 		// ClientFlag:           _req.GetCapabilities(),
 		MaxPacketSize:        16777215,
 		CharacterSet:         0xff,
@@ -140,7 +141,7 @@ func makeHandshakeResponseFromRequest(req []byte, username, password string) []b
 		Username:             username,
 		AuthResponseLen:      uint8(len(p)),
 		AuthResponse:         string(p),
-		Database:             "",
+		Database:             schema,
 		ClientPluginName:     _req.AuthPluginName,
 		ClientAttributes:     nil,
 		ZstdCompressionLevel: 0,

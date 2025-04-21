@@ -17,9 +17,9 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, tableName string) {
+func handleConn(c net.Conn, schema, tableName string) {
 	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
-	p := protocol.InitializeProxy(c, host, tableName, cancel, user, pass)
+	p := protocol.InitializeProxy(c, host, schema, tableName, cancel, user, pass)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	// defer c.Close()
@@ -75,7 +75,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, "") // fmt.Sprintf("%s.%s", s.database[0], s.table[0]))
+		go handleConn(originSocket, "", "") // fmt.Sprintf("%s.%s", s.database[0], s.table[0]))
 	}
 
 }
