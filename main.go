@@ -75,7 +75,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, "", "") // fmt.Sprintf("%s.%s", s.database[0], s.table[0]))
+		go handleConn(originSocket, "ACO_MS_DB", "APLCTN_RVW_PRD") // fmt.Sprintf("%s.%s", s.database[0], s.table[0]))
 	}
 
 }

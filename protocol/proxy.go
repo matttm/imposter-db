@@ -20,12 +20,12 @@ var CLIENT_CAPABILITIES uint32 = CLIENT_LONG_PASSWORD |
 	CLIENT_DEPRECATE_EOF
 
 type Proxy struct {
-	client      net.Conn
-	clientFlags uint32
-	remote      net.Conn
-	localDb     net.Conn
-	tableName   string
-	cancel      context.CancelFunc
+	client            net.Conn
+	clientFlags       uint32
+	remote            net.Conn
+	localDb           net.Conn
+	absoluteTableName string
+	cancel            context.CancelFunc
 }
 
 func InitializeProxy(client net.Conn, host string, schema, tableName string, cancel context.CancelFunc, user, pass string) *Proxy {
@@ -59,11 +59,11 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 	p.remote = remote
 	p.client = client
 	p.localDb = local
-	p.tableName = tableName
+	p.absoluteTableName = fmt.Sprintf("%s.%s", schema, tableName)
 	return p
 }
 func (p *Proxy) HandleCommand() {
-	HandleMessage(p.clientFlags, p.client, p.remote, p.localDb, p.tableName, p.cancel)
+	HandleMessage(p.clientFlags, p.client, p.remote, p.localDb, p.absoluteTableName, p.cancel)
 }
 
 func (p *Proxy) CloseProxy() {

@@ -81,7 +81,6 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		b = append(b, EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)}).Bytes()...)
 		clientWrite(PackPayload(b, 3))
 	}
-	// b = clientRead(nil)
 	// if not ok packet, then Prootocol::AuthMoreData
 	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
 	if b[4] != AUTH_MORE_DATA {
@@ -177,13 +176,13 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 		}
 	case COM_QUERY:
 		var queried net.Conn
-		// if DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
-		// 	fmt.Println("Routing to local")
-		// 	queried = localDb
-		// } else {
-		// 	fmt.Println("Routing to remote")
-		queried = remote
-		// }
+		if DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
+			fmt.Println("Routing to local")
+			queried = localDb
+		} else {
+			fmt.Println("Routing to remote")
+			queried = remote
+		}
 		_, err = queried.Write(packet)
 		if err != nil {
 			panic(err)
