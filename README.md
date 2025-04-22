@@ -34,7 +34,9 @@ go mod tidy  # to install all dependencies
 
 go build  # creates binary
 ```
-Before running the program, you need to export the following variables into the environment of the terminal that will be running the proxy:
+Then run ith:
+```
+./imposter-db
 ```
 export DB_HOST=""
 export DB_USER=""
