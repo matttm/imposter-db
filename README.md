@@ -35,7 +35,7 @@ docker run -d --name imposter-cont -p 3306:3306 imposter-img
 
 Then run:
 ```
-go mod tidy  # to install all dependencies
+go mod download  # to install all dependencies
 
 go build  # creates binary
 ```
