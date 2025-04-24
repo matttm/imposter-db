@@ -44,6 +44,8 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 		CompleteHandshakeV10(f, schema, r, _client, user, pass, cancel)
 		return r
 	}
+	// TODO: create a map from a conn to that conn's client flags?
+	p.clientFlags = CLIENT_CAPABILITIES // FIX!!
 	local = connect(&CLIENT_CAPABILITIES, schema, "127.0.0.1", "root", "mypassword", nil)
 
 	remote = connect(&p.clientFlags, schema, host, user, pass, client)

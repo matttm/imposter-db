@@ -50,8 +50,11 @@ func sha256Wrapper(data []byte) []byte {
 	return sum[:]
 }
 
-func encryptPassword(pemKey, password []byte) []byte {
-
+// doc: https://dev.mysql.com/blog-archive/preparing-your-community-connector-for-mysql-8-part-2-sha256/
+//
+//	frim doc : It’s important to note that a incompatible change happened in server 8.0.5.  Prior to server 8.0.5 the encryption was done using RSA_PKCS1_PADDING.  With 8.0.5 it is done with RSA_PKCS1_OAEP_PADDING.  This means that if you have implemented support for this authentication scheme for servers prior to 8.0.5 you will need to update your connector to make this change.
+func encryptPassword(pemKey, password, salt []byte) []byte {
+	log.Printf("PEM KEY: %s", pemKey)
 	// Decode PEM to get DER-encoded key
 	block, _ := pem.Decode(pemKey)
 	if block == nil || block.Type != "PUBLIC KEY" {
@@ -66,7 +69,12 @@ func encryptPassword(pemKey, password []byte) []byte {
 	if !ok {
 		panic("not an RSA public key")
 	}
-	e, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPub, password)
+	// XOR (password + '\x00') with the salt (repeated if needed)
+	password = append(password, 0x00)
+	scrambled := xorScramble(password, salt)
+	log.Printf("Scrambled password (hex): %x", scrambled)
+	e, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPub, scrambled)
+	log.Printf("Encrypted password len: %d", len(e))
 	if err != nil {
 		log.Print(err)
 		panic("RSA encryption error occured")

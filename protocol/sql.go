@@ -40,15 +40,18 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	// read handshake request
 	log.Println("Entering connection phase (without SSL)...")
 	b, _ = ReadPacket(remote)
+	req, _ := DecodeHandshakeRequest(b[4:])
+	log.Printf("request: %#v", req)
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
 	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
 	// TODO: REFACTOR CLOSURE
-	lazy := func() []byte { return makeHandshakeResponseFromRequest(f, schema, b, username, password) }
+	lazy := func() []byte { return NewHandshakeResponse(f, schema, req, username, password) }
 	b = clientRead(lazy)
 	// NOTE: TRIAL RUN: i think i need to get client fields here
 	if client != nil {
 		_response, _ := DecodeHandshakeResponse(b[4:])
+		log.Printf("response: %#v", _response)
 		*f = _response.ClientFlag
 	}
 	//
@@ -82,10 +85,10 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		clientWrite(PackPayload(b, 3))
 	}
 	// if not ok packet, then Prootocol::AuthMoreData
-	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
 	if b[4] != AUTH_MORE_DATA {
 		log.Panicf("AuthMoreData was expected but got %x", b)
 	}
+	// getting auth switch request -- should have header 0x01 followed by 0x04 indicating perform full auth (not cached)
 	if b[5] == FAST_AUTH_SUCCESS {
 		// this is FAST_AUTH_SUCCESS
 		log.Println("FAST_AUTH_SUCCESS received")
@@ -98,6 +101,11 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 			log.Panic("Received FAST_AUTH_SUCCESS followed by non-OK packet")
 		}
 	}
+	if b[5] != 0x04 {
+		log.Panicf("Expecting perform_full_authentication")
+	}
+	// clientWrite(b)
+	log.Println("Requesting server's public key")
 	// since im not doing an ssl -- ask for rsa public key
 	reqKeyPacket := PackPayload([]byte{0x02}, 3)
 	_, err = remote.Write(reqKeyPacket)
@@ -107,7 +115,8 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	pem, _ := ReadPacket(remote)
 	pem = pem[4:] // removing header
 	pem = pem[1:] // removing header for AuthMoreData 0x01
-	e := encryptPassword(pem, []byte(password))
+	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
+	e := encryptPassword(pem, []byte(password), nonce)
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {
@@ -116,38 +125,34 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	_, _ = ReadPacket(remote)
 	return
 }
-func makeHandshakeResponseFromRequest(f *uint32, schema string, req []byte, username, password string) []byte {
+func NewHandshakeResponse(f *uint32, schema string, req *HandshakeV10Payload, username, password string) []byte {
 	log.Println("=============== START 'respondToHandshakeReq'")
-	// tear off header
-	seq := req[3]
-	req = req[4:]
-	_req, _ := DecodeHandshakeRequest(req)
-	p, err := hashPassword(
-		_req.AuthPluginName,
-		append(_req.AuthPluginDataPart1[:], _req.AuthPluginDataPart2...),
+	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
+	hashed, err := hashPassword(
+		req.AuthPluginName,
+		nonce,
 		password,
 	)
 	if err != nil {
-		SaveToFile(req, "failed-codings", "authentication-decoding-failure")
 		panic(err)
 	}
 	res := HandshakeResponse41{
-		ClientFlag: *f,
-		// ClientFlag:           _req.GetCapabilities(),
+		ClientFlag:           *f,
 		MaxPacketSize:        16777215,
 		CharacterSet:         0xff,
 		Filler:               [23]byte{},
 		Username:             username,
-		AuthResponseLen:      uint8(len(p)),
-		AuthResponse:         string(p),
+		AuthResponseLen:      uint8(len(hashed)),
+		AuthResponse:         string(hashed),
 		Database:             schema,
-		ClientPluginName:     _req.AuthPluginName,
+		ClientPluginName:     req.AuthPluginName,
 		ClientAttributes:     nil,
 		ZstdCompressionLevel: 0,
 	}
+	log.Printf("response: %#v", res)
 	b, _ := EncodeHandshakeResponse(&res)
 	log.Println("=============== END 'respondToHandshakeReq'")
-	return PackPayload(b.Bytes(), seq+byte(1))
+	return PackPayload(b.Bytes(), 0x01)
 }
 
 // Method for handling messages when handshake has been done

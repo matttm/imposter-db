@@ -173,3 +173,10 @@ func xorBytes(a, b []byte) []byte {
 	}
 	return result
 }
+func xorScramble(input, salt []byte) []byte {
+	out := make([]byte, len(input))
+	for i := 0; i < len(input); i++ {
+		out[i] = input[i] ^ salt[i%len(salt)]
+	}
+	return out
+}
