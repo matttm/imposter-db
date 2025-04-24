@@ -9,6 +9,9 @@ This program acts as a proxy database, in which, any one table can be spoofed, a
 >
 > if you do find an issue, though, please document it well and raise an issue.
 
+> [!NOTE}
+> I am working on coding the `caching_sha2_password` and `sha256_password` authentication methods. Currently, only the fast_auth path and `mysql_native_password` work. 
+
 ## Motivation.
 
 Have you ever been in development and the needed data is in the test environment, but working with it is almost impossible because application gates are always being opened and closed? With this program, just spoof the application gate table and connect to the proxy. You can easily modify the application gates without affecting the real gates in the test environment.
@@ -34,26 +37,38 @@ go mod tidy  # to install all dependencies
 
 go build  # creates binary
 ```
-Then run ith:
-```
-./imposter-db
+These variables should be in the environment of the terminal runnning the program and shouldn be the information you normally use to correct directly to the remote:
 ```
 export DB_HOST=""
 export DB_USER=""
 export DB_PASS=""
 export DB_PORT=""
-export DB_NAME=""
+export DB_NAME="
 ```
-These variables should be the information you normally use to correct directly to the remote
 
 Then run it with:
 ```
 ./imposter-db
 ```
-
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
-Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the following credentials:
+So, a sample out may be:
+```
+Choose a database:
+> A
+> B
+> C
+```
+Using space for select and enter to continue
+```
+Select a table:
+> D
+> E
+> F
+```
+After choosing those, **a replica table `D` will be made inside a replica database `A` in the running docker container**.
+
+Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the credentials needed to access the remote.
 ```
 host -  127.0.0.1
 port - 3307
@@ -65,7 +80,7 @@ password - PASS -- where PASS is the password of the above user in the remote da
 Here's a flow chart depicting the architecture of what the proxy does:
 ```
 +---------+      +---------+
-| Client  |------>| Proxy   |
+| Client  |----->| Proxy   |
 +---------+      +---------+
                      |
                      | Analyzes Request Content
