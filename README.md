@@ -4,12 +4,14 @@
 
 This program acts as a proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
+Once you specified the table you want to spoof, it will be replicated inside the running, docker container, so once you connect to the proxy, you will see all the tables from the remote, but this spoofed table will be coming from the docker container.
+
 > [!NOTE]
 > This proxy has been written, with consideration of most cient versions in mind. With that being said though, most testing has been with clients supporting at least the newer 4.1 version protocol.
 >
 > if you do find an issue, though, please document it well and raise an issue.
 
-> [!NOTE}
+> [!NOTE]
 > I am working on coding the `caching_sha2_password` and `sha256_password` authentication methods. Currently, only the fast_auth path and `mysql_native_password` work. 
 
 ## Motivation.
