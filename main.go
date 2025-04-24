@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
-	"strings"
 
-	"github.com/go-mysql-org/go-mysql/client"
+	"github.com/matttm/imposter-db/protocol"
 )
 
 var ()
@@ -16,17 +17,19 @@ type selection struct {
 	table    []string
 }
 
-func handleConn(c net.Conn, tableName string, db *client.Conn) {
-	p := InitializeProxy(c, tableName, db)
+func handleConn(c net.Conn, schema, tableName string) {
+	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
+	p := protocol.InitializeProxy(c, host, schema, tableName, cancel, user, pass)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
-	// defer p.CloseProxy()
+	defer p.CloseProxy()
 	for {
-		if err := p.server.HandleCommand(); err != nil {
-			if strings.Contains(err.Error(), "connection closed") {
-				continue
-			}
-			panic(err)
+		select {
+		case <-ctx.Done():
+			return // Exit loop when context is done
+		// TODO: add monitoring here
+		default:
+			p.HandleCommand()
 		}
 	}
 }
@@ -51,16 +54,13 @@ func main() {
 	log.Println(columns)
 
 	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-	log.Println(insertTemplate)
 
 	inserts := QueryFor(o, insertTemplate)
-	for _, v := range inserts {
-		log.Println(v)
-	}
-	var localDb *client.Conn = InitLocalDatabase()
-	defer localDb.Close()
+	var localDb *sql.DB = InitLocalDatabase()
 	log.Println("Database provider init")
 	Populate(localDb, s.database[0], createCommand, inserts)
+	// close db as were going to open it again in raw tcp form
+	localDb.Close()
 
 	// start proxying
 	socket, err := net.Listen("tcp", "127.0.0.1:3307")
@@ -74,7 +74,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, s.table[0], localDb)
+		go handleConn(originSocket, s.database[0], s.table[0])
 	}
 
 }
