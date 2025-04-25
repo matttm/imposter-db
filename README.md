@@ -20,9 +20,9 @@ Have you ever been in development and the needed data is in the test environment
 
 ## Getting started
 
-To begin, you must have Go and Docker installed. In case you are on mac, docker won't work by itself, unless you install docker desktop. If you're like me and PREFER CLIs, then install, `colima` which is a container runtime, and can serve as a "docker daemon".
+To begin, you must have Go and Docker installed. In case you are on mac, docker won't work by itself, unless you install docker desktop. If you're like me and PREFER CLIs, then install, `docker` and `colima` which is a container runtime, and can serve as a "docker daemon".
 
-First, you need to run the docker daemon, which you can do if using Colima by running:
+Once you have the prereqs, you need to run the docker daemon, which you can do if using Colima by running:
 ```
 colima start
 ```
