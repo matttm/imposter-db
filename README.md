@@ -8,8 +8,6 @@ Once you specified the table you want to spoof, it will be replicated inside the
 
   > [!CAUTION]
 > This proxy only works correctly with clients that set the `DEPRECATE_EOF` flag, but support for this, is in development.
->
-> if you do find an issue, though, please document it well and raise an issue.
 
 > [!NOTE]
 > I am working on coding the `caching_sha2_password` and `sha256_password` authentication methods. Currently, only the fast_auth path and `mysql_native_password` work. 
