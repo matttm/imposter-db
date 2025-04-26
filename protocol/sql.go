@@ -53,9 +53,6 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		_response, _ := DecodeHandshakeResponse(b[4:])
 		log.Printf("response: %#v", _response)
 		*f = _response.ClientFlag
-		if *f&CLIENT_DEPRECATE_EOF == 0 {
-			panic("Error: DEPRECATE_EOF not set")
-		}
 	}
 	//
 	log.Println("Sending HandshakeResponse")

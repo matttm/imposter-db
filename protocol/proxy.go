@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"time"
 
 	"fmt"
 	"log"
@@ -34,21 +35,23 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 
 	var remote net.Conn
 	var local net.Conn
-	connect := func(f *uint32, schema, host, user, pass string, _client net.Conn) net.Conn {
+	connect := func(f *uint32, _schema, host, _user, _pass string, _client net.Conn) net.Conn {
 		// im going to build up the tcp connectin to mysql protocol
-		log.Printf("Connection intializing with %s:%s@%s", user, pass, host)
+		log.Printf("Connection intializing with %s:%s@%s", _user, _pass, host)
 		r, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, 3306))
 		if err != nil {
 			panic(err)
 		}
-		CompleteHandshakeV10(f, schema, r, _client, user, pass, cancel)
+		CompleteHandshakeV10(f, _schema, r, _client, _user, _pass, cancel)
 		return r
 	}
 	// TODO: create a map from a conn to that conn's client flags?
 	p.clientFlags = CLIENT_CAPABILITIES // FIX!!
-	local = connect(&CLIENT_CAPABILITIES, schema, "127.0.0.1", "root", "mypassword", nil)
 
 	remote = connect(&p.clientFlags, schema, host, user, pass, client)
+	time.Sleep(15 * time.Second)
+	p.clientFlags = p.clientFlags &^ CLIENT_CONNECT_ATTRS
+	local = connect(&p.clientFlags, schema, "127.0.0.1", "root", "mypassword", nil)
 	log.Println("Handshake protocol with remote was successful")
 
 	log.Printf("--------------flags--------------")
