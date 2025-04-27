@@ -27,7 +27,6 @@ func handleConn(c net.Conn, schema, tableName string) {
 		select {
 		case <-ctx.Done():
 			return // Exit loop when context is done
-		// TODO: add monitoring here
 		default:
 			p.HandleCommand()
 		}
@@ -41,10 +40,16 @@ func main() {
 	defer o.Close()
 	databases := QueryFor(o, SHOW_DB_QUERY)
 	s.database = PromptSelection("Choose database", databases)
+	if len(s.database) < 1 {
+		log.Panic("Error: no selection made")
+	}
 	log.Printf("You chose %s", s.database[0])
 
 	table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
 	s.table = PromptSelection("Choose table", table)
+	if len(s.table) < 1 {
+		log.Panic("Error: no selection made")
+	}
 	log.Printf("You chose %s", s.table[0])
 
 	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
