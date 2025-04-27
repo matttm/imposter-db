@@ -46,6 +46,7 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	log.Println("Entering connection phase (without SSL)...")
 	b, _ = ReadPacket(remote)
 	req, _ := DecodeHandshakeRequest(b[4:])
+	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
 	clientWrite(b)
@@ -109,7 +110,8 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	// clientWrite(b)
 	log.Println("Requesting server's public key")
 	// since im not doing an ssl -- ask for rsa public key
-	reqKeyPacket := PackPayload([]byte{0x02}, 3)
+	lazy = func() []byte { return PackPayload([]byte{0x02}, 3) }
+	reqKeyPacket := clientRead(lazy)
 	_, err = remote.Write(reqKeyPacket)
 	if err != nil {
 		panic(err)
@@ -117,8 +119,8 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	pem, _ := ReadPacket(remote)
 	pem = pem[4:] // removing header
 	pem = pem[1:] // removing header for AuthMoreData 0x01
-	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
-	e := encryptPassword(pem, []byte(password), nonce)
+	lazy = func() []byte { return encryptPassword(pem, []byte(password), nonce) }
+	e := clientRead(lazy)
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {
