@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"context"
-	"time"
 
 	"fmt"
 	"log"
@@ -45,11 +44,7 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 		CompleteHandshakeV10(f, _schema, r, _client, _user, _pass, cancel)
 		return r
 	}
-	// TODO: create a map from a conn to that conn's client flags?
-	p.clientFlags = CLIENT_CAPABILITIES // FIX!!
-
 	remote = connect(&p.clientFlags, schema, host, user, pass, client)
-	time.Sleep(15 * time.Second)
 	p.clientFlags = p.clientFlags &^ CLIENT_CONNECT_ATTRS
 	local = connect(&p.clientFlags, schema, "127.0.0.1", "root", "mypassword", nil)
 	log.Println("Handshake protocol with remote was successful")
