@@ -272,7 +272,8 @@ func ReadPacket(c net.Conn) ([]byte, error) {
 	//
 	// just check for error and panic here?
 	if packet[4] == ERR_PACKET {
-		panic("Error occured")
+		e := DecodeErrPacket(0, packet[4:])
+		panic(e.ErrorMessage)
 	}
 	return packet, nil
 }

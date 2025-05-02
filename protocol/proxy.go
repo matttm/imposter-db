@@ -44,7 +44,7 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 		CompleteHandshakeV10(f, _schema, r, _client, _user, _pass, cancel)
 		return r
 	}
-	remote = connect(&p.clientFlags, schema, host, user, pass, client)
+	remote = connect(&p.clientFlags, schema, host, "", "", client) // no need to provide user/pass when client is non-nil
 	p.clientFlags = p.clientFlags &^ CLIENT_CONNECT_ATTRS
 	local = connect(&p.clientFlags, schema, "127.0.0.1", "root", "mypassword", nil)
 	log.Println("Handshake protocol with remote was successful")
