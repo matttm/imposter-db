@@ -52,14 +52,15 @@ func main() {
 	}
 	log.Printf("You chose %s", s.table[0])
 
+	// get data to create template
 	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
 	columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
 
 	log.Println(createCommand)
 	log.Println(columns)
-
+	// form the select query that results in inserts
 	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-
+	// get an insert for each row
 	inserts := QueryFor(o, insertTemplate)
 	var localDb *sql.DB = InitLocalDatabase()
 	log.Println("Database provider init")
