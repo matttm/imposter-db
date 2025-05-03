@@ -2,4 +2,4 @@ main
 imposter-db
 .env*
 *.env
-*.pcapng
+.DS_Store

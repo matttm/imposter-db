@@ -13,6 +13,7 @@ import (
 //
 // Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
 func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
+	// function writes given []byte  to client if not null
 	clientWrite := func(b []byte) {
 		if client == nil {
 			return
@@ -24,6 +25,10 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		}
 		log.Printf("%d bytes sent to client", n)
 	}
+	// function that reads from clientt if not null
+	//
+	// when null, the function gi rn as arg, is invoked to
+	//  get []byte resembling a response
 	clientRead := func(f func() []byte) []byte {
 		if client == nil {
 			return f()
@@ -41,21 +46,16 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	log.Println("Entering connection phase (without SSL)...")
 	b, _ = ReadPacket(remote)
 	req, _ := DecodeHandshakeRequest(b[4:])
-	log.Printf("request: %#v", req)
+	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
-	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
+	clientWrite(b)
 	// TODO: REFACTOR CLOSURE
 	lazy := func() []byte { return NewHandshakeResponse(f, schema, req, username, password) }
 	b = clientRead(lazy)
-	// NOTE: TRIAL RUN: i think i need to get client fields here
 	if client != nil {
 		_response, _ := DecodeHandshakeResponse(b[4:])
-		log.Printf("response: %#v", _response)
 		*f = _response.ClientFlag
-		if *f&CLIENT_DEPRECATE_EOF == 0 {
-			panic("Error: DEPRECATE_EOF not set")
-		}
 	}
 	//
 	log.Println("Sending HandshakeResponse")
@@ -104,13 +104,14 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 			log.Panic("Received FAST_AUTH_SUCCESS followed by non-OK packet")
 		}
 	}
-	if b[5] != 0x04 {
+	if b[5] != PERFORM_FULL_AUTH {
 		log.Panicf("Expecting perform_full_authentication")
 	}
 	// clientWrite(b)
 	log.Println("Requesting server's public key")
 	// since im not doing an ssl -- ask for rsa public key
-	reqKeyPacket := PackPayload([]byte{0x02}, 3)
+	lazy = func() []byte { return PackPayload([]byte{0x02}, 3) }
+	reqKeyPacket := clientRead(lazy)
 	_, err = remote.Write(reqKeyPacket)
 	if err != nil {
 		panic(err)
@@ -118,8 +119,8 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	pem, _ := ReadPacket(remote)
 	pem = pem[4:] // removing header
 	pem = pem[1:] // removing header for AuthMoreData 0x01
-	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
-	e := encryptPassword(pem, []byte(password), nonce)
+	lazy = func() []byte { return encryptPassword(pem, []byte(password), nonce) }
+	e := clientRead(lazy)
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {
@@ -152,7 +153,6 @@ func NewHandshakeResponse(f *uint32, schema string, req *HandshakeV10Payload, us
 		ClientAttributes:     nil,
 		ZstdCompressionLevel: 0,
 	}
-	log.Printf("response: %#v", res)
 	b, _ := EncodeHandshakeResponse(&res)
 	log.Println("=============== END 'respondToHandshakeReq'")
 	return PackPayload(b.Bytes(), 0x01)
@@ -172,6 +172,7 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 	cmd := Command(packet[4])
 	switch cmd {
 	case COM_QUIT:
+		cancel()
 	case COM_SLEEP, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END:
 		_, err = remote.Write(packet)
 		if err != nil {
@@ -205,7 +206,7 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 		} else {
 			// this case is when a client is not using eof deperecated
 			// so in this instance, when doing a query, the server sends 2 EOFs--an intermediate one following
-			// the fieldset and one more following the rpws
+			// the fieldset and one more following the rows
 			//
 			// getting rows
 			packet = ReadPackets(queried, cancel)
@@ -271,7 +272,8 @@ func ReadPacket(c net.Conn) ([]byte, error) {
 	//
 	// just check for error and panic here?
 	if packet[4] == ERR_PACKET {
-		panic("Error occured")
+		e := DecodeErrPacket(0, packet[4:])
+		panic(e.ErrorMessage)
 	}
 	return packet, nil
 }

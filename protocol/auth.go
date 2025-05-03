@@ -30,6 +30,7 @@ const (
 	AUTH_SWITCH_REQUEST    byte = 0xFE // Server requests authentication method switch
 	FAST_AUTH_SUCCESS      byte = 0x03
 	AUTH_SWITCH_RESPONSE   byte = 0x00 // Client response to authentication switch
+	PERFORM_FULL_AUTH      byte = 0x04
 )
 
 var authMap map[string]AuthenticationMethod = map[string]AuthenticationMethod{
