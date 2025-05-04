@@ -3,6 +3,8 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"log"
+	"regexp"
 	"strings"
 )
 
@@ -26,6 +28,7 @@ func DecodeQuery(flags uint32, b []byte) *Query {
 		q.paramSetCount, _ = ReadVarLengthInt(r)
 	}
 	q.query = ReadFixedLengthString(r, uint64(r.Len()))
+	q.query = strings.ToLower(q.query)
 	return q
 }
 
@@ -36,5 +39,10 @@ func EncodeQuery(q *Query) []byte {
 	return w.Bytes()
 }
 func (q *Query) Contains(t string) bool {
-	return strings.Contains(q.query, t)
+	log.Printf("Checking for '%s' in '%s'", t, q.query)
+	b, err := regexp.MatchString(`from `+regexp.QuoteMeta(t)+`\s+`, q.query)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

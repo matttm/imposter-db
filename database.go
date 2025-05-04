@@ -37,7 +37,7 @@ func InitializeDatabase(user, pass, host, port, dbname string) *sql.DB {
 	return db
 }
 
-func InitOverseerConnection() *sql.DB {
+func InitRemoteConnection() *sql.DB {
 	// create connection to ask user what should be imposed
 	return InitializeDatabase(user, pass, host, port, dbName)
 }

@@ -7,9 +7,9 @@ var (
 	FETCH_FOREIGN_TABLES = func(table, column string) string {
 		return fmt.Sprintf(`
 			SELECT TABLE_NAME, TABLE_SCHEMA
-FROM information_schema.KEY_COLUMN_USAGE
-WHERE REFERENCED_TABLE_NAME = '%s'
-  AND REFERENCED_COLUMN_NAME = '%s';
+			FROM information_schema.KEY_COLUMN_USAGE
+			WHERE REFERENCED_TABLE_NAME = '%s'
+			AND REFERENCED_COLUMN_NAME = '%s';
 			`, table, column)
 	}
 	SHOW_TABLE_QUERY = func(db string) string {
