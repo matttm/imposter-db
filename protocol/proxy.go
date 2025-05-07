@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"strings"
 
 	"fmt"
 	"log"
@@ -59,6 +60,8 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 	p.remote = remote
 	p.client = client
 	p.localDb = local
+	schema = strings.ToLower(schema)
+	tableName = strings.ToLower(tableName)
 	p.absoluteTableName = fmt.Sprintf("%s.%s", schema, tableName)
 	return p
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net"
@@ -13,8 +12,8 @@ import (
 var ()
 
 type selection struct {
-	database []string
-	table    []string
+	databases []string
+	tables    []string
 }
 
 func handleConn(c net.Conn, schema, tableName string) {
@@ -34,36 +33,43 @@ func handleConn(c net.Conn, schema, tableName string) {
 }
 func main() {
 	s := selection{}
+
+	remoteDb := InitRemoteConnection()
+	defer remoteDb.Close()
+	log.Println("Remote database init")
+	localDb := InitLocalDatabase()
+	defer localDb.Close()
+	log.Println("Local database init")
+
 	log.Printf("Checking for available databases...")
-
-	o := InitOverseerConnection()
-	defer o.Close()
-	databases := QueryFor(o, SHOW_DB_QUERY)
-	s.database = PromptSelection("Choose database", databases)
-	if len(s.database) < 1 {
+	databases := QueryFor(remoteDb, SHOW_DB_QUERY)
+	s.databases = PromptSelection("Choose database", databases)
+	if len(s.databases) < 1 {
 		log.Panic("Error: no selection made")
 	}
-	log.Printf("You chose %s", s.database[0])
+	log.Printf("You chose %s", s.databases[0])
 
-	table := QueryFor(o, SHOW_TABLE_QUERY(s.database[0]))
-	s.table = PromptSelection("Choose table", table)
-	if len(s.table) < 1 {
+	table := QueryFor(remoteDb, SHOW_TABLE_QUERY(s.databases[0]))
+	s.tables = PromptSelection("Choose table", table)
+	if len(s.tables) < 1 {
 		log.Panic("Error: no selection made")
 	}
-	log.Printf("You chose %s", s.table[0])
+	log.Printf("You chose %s", s.tables[0])
 
-	createCommand := QueryForTwoColumns(o, SHOW_CREATE(s.database[0], s.table[0]))[0][1]
-	columns := QueryForTwoColumns(o, SELECT_COLUMNS(s.table[0]))
+	// get data to create template
+	createCommand := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], s.tables[0]))[0][1]
+	columns := QueryForTwoColumns(remoteDb, SELECT_COLUMNS(s.tables[0]))
+
+	// TODO: create all referencing tables in localDb
+	// foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][1])) // columns[0][1] should be primary key
 
 	log.Println(createCommand)
 	log.Println(columns)
-
-	insertTemplate := CreateSelectInsertionFromSchema(s.database[0], s.table[0], columns)
-
-	inserts := QueryFor(o, insertTemplate)
-	var localDb *sql.DB = InitLocalDatabase()
-	log.Println("Database provider init")
-	Populate(localDb, s.database[0], createCommand, inserts)
+	// form the select query that results in inserts
+	insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], s.tables[0], columns)
+	// get an insert for each row
+	inserts := QueryFor(remoteDb, insertTemplate)
+	Populate(localDb, s.databases[0], createCommand, inserts)
 	// close db as were going to open it again in raw tcp form
 	localDb.Close()
 
@@ -73,13 +79,12 @@ func main() {
 		log.Fatalf("failed to start proxy: %s", err.Error())
 	}
 	fmt.Printf("Listening on localhost:%d\n", 3307)
-	// inputTables := []string{"ACO_MS_DB.APLCTN_RVW_PRD"}
 	for {
 		originSocket, err := socket.Accept()
 		if err != nil {
 			log.Fatalf("failed to accept connection: %s", err.Error())
 		}
-		go handleConn(originSocket, s.database[0], s.table[0])
+		go handleConn(originSocket, s.databases[0], s.tables[0])
 	}
 
 }
