@@ -69,6 +69,7 @@ func main() {
 	insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], s.tables[0], columns)
 	// get an insert for each row
 	inserts := QueryFor(remoteDb, insertTemplate)
+	ReplaceDB(localDb, s.databases[0])
 	Populate(localDb, s.databases[0], createCommand, inserts)
 	// close db as were going to open it again in raw tcp form
 	localDb.Close()
