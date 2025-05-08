@@ -37,7 +37,7 @@ go mod download  # to install all dependencies
 
 go build  # creates binary
 ```
-These variables should be in the environment of the terminal runnning the program and shouldn be the information you normally use to correct directly to the remote:
+These variables should be in the environment of the terminal running the proxy and should be the information you normally use to correct directly to the remote:
 ```
 export DB_HOST=""
 export DB_USER=""
@@ -72,7 +72,7 @@ Finally, the proxy is running! Now we want it to do some tom-foolery. We can con
 ```
 host -  127.0.0.1
 port - 3307
-username - USER -- where USER is the user of the remote database?
+username - USER -- where USER is the user of the remote database
 password - PASS -- where PASS is the password of the above user in the remote database
 ```
 # Architecture
