@@ -77,10 +77,10 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	}
 	return props
 }
-func Populate(db *sql.DB, dbName, query string, inserts []string) {
+func ReplaceDB(db *sql.DB, dbName string) {
 	_, err := db.Exec("SET sql_mode=''")
 	if err != nil {
-		fmt.Println("Error while dropping imposter database")
+
 		panic(err)
 	}
 	_, err = db.Exec(DROP_DB(dbName))
@@ -98,7 +98,9 @@ func Populate(db *sql.DB, dbName, query string, inserts []string) {
 		fmt.Println("Error while using database")
 		panic(err)
 	}
-	_, err = db.Exec(query)
+}
+func Populate(db *sql.DB, dbName, query string, inserts []string) {
+	_, err := db.Exec(query)
 	if err != nil {
 		fmt.Println("Error while creating spoofed table")
 		panic(err)
