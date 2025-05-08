@@ -52,14 +52,14 @@ Then run it with:
 ```
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
-So, a sample out may be:
+Chooose DB:
 ```
 Choose a database:
 > A
 > B
 > C
 ```
-Using space for select and enter to continue
+Using space for select and enter to continue, then select a table.
 ```
 Select a table:
 > D
@@ -75,6 +75,7 @@ port - 3307
 username - USER -- where USER is the user of the remote database
 password - PASS -- where PASS is the password of the above user in the remote database
 ```
+You can connect to it from an DBMS or you can set a local running API to use it as the database.
 # Architecture
 
 Here's a flow chart depicting the architecture of what the proxy does:
