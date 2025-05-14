@@ -5,9 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"time"
 	"unicode/utf8"
 )
 
@@ -48,6 +45,11 @@ func ReadVarLengthInt(r io.Reader) (uint64, int) {
 	}
 	return binary.LittleEndian.Uint64(buf), sz + 1 // we add 1 to account for the examined byte
 }
+
+// ReadLengthEncodedString reads a length-encoded string from the provided io.Reader.
+// It first reads a variable-length integer to determine the length of the string,
+// then reads and returns the string of that length.
+// If an error occurs during reading, an empty string is returned.
 func ReadLengthEncodedString(r io.Reader) string {
 	n, _ := ReadVarLengthInt(r)
 	return ReadFixedLengthString(r, n)
@@ -77,6 +79,10 @@ func ReadNullTerminatedString(r io.Reader) string {
 	}
 	return string(name)
 }
+
+// ReadFixedLengthString reads exactly n bytes from the provided io.Reader and returns them as a string.
+// If an error occurs during reading, the function panics.
+// Note: The returned string may contain null bytes or other non-printable characters if present in the input.
 func ReadFixedLengthString(r io.Reader, n uint64) string {
 	s := make([]byte, n)
 	_, err := r.Read(s)
@@ -85,6 +91,9 @@ func ReadFixedLengthString(r io.Reader, n uint64) string {
 	}
 	return string(s)
 }
+
+// ReadStringEOF reads and returns a string from the provided bytes.Reader until EOF.
+// It utilizes ReadFixedLengthString to read the remaining bytes as a string.
 func ReadStringEOF(r *bytes.Reader) string {
 	return ReadFixedLengthString(r, uint64(r.Len()))
 }
@@ -142,41 +151,15 @@ func isNonASCIIorEmpty(s string) bool {
 	return false
 }
 
-func SaveToFile(data []byte, newDir, newFilename string) error {
-	currentTime := time.Now()
-	// Create the directory if it doesn't exist
-	err := os.MkdirAll(newDir, 0755)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-	newFilename = fmt.Sprintf("%s-%s.capture", newFilename, currentTime.Format("2006.01.02 15:04:05"))
-	// Construct the full file path
-	filePath := filepath.Join(newDir, newFilename)
-
-	// Create the file and write data
-	file, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = file.Write(data)
-	return err
-}
-func xorBytes(a, b []byte) []byte {
-	if len(a) != len(b) {
-		return nil // Return nil if slices have different lengths
-	}
-	result := make([]byte, len(a))
-	for i := range a {
-		result[i] = a[i] ^ b[i]
-	}
-	return result
-}
-func xorScramble(input, salt []byte) []byte {
-	out := make([]byte, len(input))
-	for i := 0; i < len(input); i++ {
-		out[i] = input[i] ^ salt[i%len(salt)]
-	}
-	return out
-}
+// SaveToFile writes the provided data to a file in the specified directory with a timestamped filename.
+// It creates the directory if it does not exist. The filename is constructed by appending the current
+// timestamp to the provided newFilename, followed by the ".capture" extension. Returns an error if
+// directory creation, file creation, or writing fails.
+//
+// Parameters:
+//   - data: The byte slice to be written to the file.
+//   - newDir: The directory where the file will be saved.
+//   - newFilename: The base name for the file (timestamp and extension will be appended).
+//
+// Returns:
+//   - error: An error if any operation fails, otherwise nil.

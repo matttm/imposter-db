@@ -43,6 +43,20 @@ func CreateTableStatement(dbName, tableName string, columns map[string]string) (
 	return statement, nil
 }
 
+// CreateSelectInsertionFromSchema generates a SQL SELECT statement that produces
+// INSERT statements for each row in the specified table. The generated SELECT
+// statement concatenates the values of each column into an INSERT statement,
+// handling NULL values and quoting as appropriate based on column types.
+//
+// Parameters:
+//   - schemaName: the name of the database schema.
+//   - tableName: the name of the table to select from.
+//   - columns: a slice of [2]string arrays, where each array contains the column
+//     name and its type.
+//
+// Returns:
+//   - A string containing the SQL SELECT statement that, when executed, returns
+//     INSERT statements for each row in the specified table.
 func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]string) string {
 	var sb strings.Builder
 	write(&sb, `SELECT CONCAT('INSERT INTO %s.%s SET ', `, schemaName, tableName)
