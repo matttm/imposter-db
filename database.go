@@ -50,7 +50,7 @@ func QueryFor(db *sql.DB, query string) []string {
 	log.Printf(query)
 	rows, err := db.Query(query)
 	if err != nil {
-		fmt.Println("Error while connecting to database")
+		fmt.Println("Error querying database")
 		panic(err)
 	}
 	defer rows.Close()
@@ -99,10 +99,11 @@ func ReplaceDB(db *sql.DB, dbName string) {
 		panic(err)
 	}
 }
-func Populate(db *sql.DB, dbName, query string, inserts []string) {
-	_, err := db.Exec(query)
+func Populate(db *sql.DB, dbName, createQuery string, inserts []string) {
+	_, err := db.Exec(createQuery)
+	log.Printf("INFO::CREATE_QUERY %s\n", createQuery)
 	if err != nil {
-		fmt.Println("Error while creating spoofed table")
+		fmt.Printf("Error while creating spoofed table: %s\n", dbName)
 		panic(err)
 	}
 	for _, ins := range inserts {

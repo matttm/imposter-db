@@ -56,21 +56,29 @@ func main() {
 	}
 	log.Printf("You chose %s", s.tables[0])
 
-	// get data to create template
-	createCommand := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], s.tables[0]))[0][1]
+	ReplaceDB(localDb, s.databases[0])
 	columns := QueryForTwoColumns(remoteDb, SELECT_COLUMNS(s.tables[0]))
 
 	// TODO: create all referencing tables in localDb
-	// foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][1])) // columns[0][1] should be primary key
+	foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][0])) // columns[0][0] should be primary key
+	// appenc foreign tables to table slice
+	for _, array := range foreignTables {
+		s.tables = append(s.tables, array[0])
+	}
+	for _, table := range s.tables {
+		log.Printf("Replicating %s", table)
+		// get data to create template
+		createCommand := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], table))[0][1]
+		columns = QueryForTwoColumns(remoteDb, SELECT_COLUMNS(table))
 
-	log.Println(createCommand)
-	log.Println(columns)
-	// form the select query that results in inserts
-	insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], s.tables[0], columns)
-	// get an insert for each row
-	inserts := QueryFor(remoteDb, insertTemplate)
-	ReplaceDB(localDb, s.databases[0])
-	Populate(localDb, s.databases[0], createCommand, inserts)
+		// log.Println(createCommand)
+		// log.Println(columns)
+		// form the select query that results in inserts
+		insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], table, columns)
+		// get an insert for each row
+		inserts := QueryFor(remoteDb, insertTemplate)
+		Populate(localDb, s.databases[0], createCommand, inserts)
+	}
 	// close db as were going to open it again in raw tcp form
 	localDb.Close()
 
