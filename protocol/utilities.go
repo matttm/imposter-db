@@ -5,6 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"time"
 	"unicode/utf8"
 )
 
@@ -163,3 +166,42 @@ func isNonASCIIorEmpty(s string) bool {
 //
 // Returns:
 //   - error: An error if any operation fails, otherwise nil.
+
+func SaveToFile(data []byte, newDir, newFilename string) error {
+	currentTime := time.Now()
+	// Create the directory if it doesn't exist
+	err := os.MkdirAll(newDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	newFilename = fmt.Sprintf("%s-%s.capture", newFilename, currentTime.Format("2006.01.02 15:04:05"))
+	// Construct the full file path
+	filePath := filepath.Join(newDir, newFilename)
+
+	// Create the file and write data
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(data)
+	return err
+}
+func xorBytes(a, b []byte) []byte {
+	if len(a) != len(b) {
+		return nil // Return nil if slices have different lengths
+	}
+	result := make([]byte, len(a))
+	for i := range a {
+		result[i] = a[i] ^ b[i]
+	}
+	return result
+}
+func xorScramble(input, salt []byte) []byte {
+	out := make([]byte, len(input))
+	for i := 0; i < len(input); i++ {
+		out[i] = input[i] ^ salt[i%len(salt)]
+	}
+	return out
+}
