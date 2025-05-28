@@ -53,7 +53,7 @@ func sha256Wrapper(data []byte) []byte {
 
 // doc: https://dev.mysql.com/blog-archive/preparing-your-community-connector-for-mysql-8-part-2-sha256/
 //
-//	frim doc : It’s important to note that a incompatible change happened in server 8.0.5.  Prior to server 8.0.5 the encryption was done using RSA_PKCS1_PADDING.  With 8.0.5 it is done with RSA_PKCS1_OAEP_PADDING.  This means that if you have implemented support for this authentication scheme for servers prior to 8.0.5 you will need to update your connector to make this change.
+//	from doc : It’s important to note that a incompatible change happened in server 8.0.5.  Prior to server 8.0.5 the encryption was done using RSA_PKCS1_PADDING.  With 8.0.5 it is done with RSA_PKCS1_OAEP_PADDING.  This means that if you have implemented support for this authentication scheme for servers prior to 8.0.5 you will need to update your connector to make this change.
 func encryptPassword(pemKey, password, salt []byte) []byte {
 	log.Printf("PEM KEY: %s", pemKey)
 	// Decode PEM to get DER-encoded key

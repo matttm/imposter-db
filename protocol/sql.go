@@ -9,9 +9,22 @@ import (
 	"net"
 )
 
-// Function CompleteHandshakeV10
+// CompleteHandshakeV10 performs the MySQL protocol handshake (version 10) between a client and a remote server.
+// It acts as a proxy, relaying handshake packets between the client and server, handling authentication negotiation,
+// and supporting both standard and full authentication flows (including RSA public key exchange if required).
 //
-// Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
+// Parameters:
+//   - f: Pointer to a uint32 to store the client capability flags negotiated during handshake.
+//   - schema: The default database/schema to use for the connection.
+//   - remote: The net.Conn representing the connection to the remote MySQL server.
+//   - client: The net.Conn representing the connection to the client (may be nil for headless mode).
+//   - username: The username to authenticate with.
+//   - password: The password to authenticate with.
+//   - cancel: A context.CancelFunc to allow cancellation of the handshake process.
+//
+// The function panics on unrecoverable errors and logs key handshake steps for debugging.
+// It supports both SSL and non-SSL handshakes, but assumes SSL is not negotiated.
+// The function handles AuthSwitchRequest and full authentication (including public key retrieval and password encryption).
 func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
 	// function writes given []byte  to client if not null
 	clientWrite := func(b []byte) {
@@ -158,7 +171,15 @@ func NewHandshakeResponse(f *uint32, schema string, req *HandshakeV10Payload, us
 	return PackPayload(b.Bytes(), 0x01)
 }
 
-// Method for handling messages when handshake has been done
+// HandleMessage processes a single MySQL protocol message from the client connection.
+// It reads the next packet from the client, determines the command type, and routes the message
+// to the appropriate backend (remote or local database) based on the command and query content.
+// For COM_QUERY commands, it inspects the query to decide whether to route to the local or remote
+// database, depending on whether the query references a spoofed table name. The function handles
+// forwarding packets between the client and the selected backend, including special handling for
+// EOF packets depending on client capabilities. For COM_QUIT, it triggers the provided cancel function.
+// Unused and unknown commands are logged or ignored. Any errors encountered during packet reading
+// or writing will cause the function to panic.
 func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofedTableName string, cancel context.CancelFunc) {
 	// i assume next message is a command
 	packet, err := ReadPacket(client)
@@ -224,7 +245,12 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 	return
 }
 
-// Reads a connection until there are no bytes to be read ATM
+// ReadPackets continuously reads packets from the provided net.Conn connection until a timeout,
+// an EOF, or an OK packet is received. It appends each packet's payload to a byte slice and returns
+// the accumulated packets. If a timeout occurs, it returns the packets read so far. If EOF is encountered,
+// it logs the closure, calls the provided cancel function, and returns the packets. Any other error
+// will cause a panic. The function logs the sequence ID of each received packet and logs when an OK
+// packet is received.
 func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 	packets := []byte{}
 	for {
@@ -252,7 +278,11 @@ func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 	}
 }
 
-// ReadPacket reads one mysql packet, by examing the length encodings
+// ReadPacket reads a packet from the given net.Conn according to the MySQL protocol.
+// It first reads the 4-byte packet header to determine the payload size and sequence ID,
+// then reads the payload of the specified size. If the packet indicates an error (ERR_PACKET),
+// it decodes the error packet and panics with the error message. Returns the full packet
+// (header + payload) or an error if reading fails.
 func ReadPacket(c net.Conn) ([]byte, error) {
 	packet := []byte{}
 	h := make([]byte, 4)
