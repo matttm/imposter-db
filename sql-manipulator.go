@@ -11,24 +11,21 @@ func CreateSelectInsertionFromSchema(schemaName, tableName string, columns [][2]
 	write(&sb, `SELECT CONCAT('INSERT INTO %s.%s SET ', `, schemaName, tableName)
 	for i, v := range columns {
 		name := v[0]
-		_type := v[1]
-		nullVal := getNullValue(_type)
-		isNull := "x.%s"
-		setVal := `x.%s`
-		if nullVal != 0 {
-			isNull = "CAST(x.%s AS CHAR)"
-			setVal = "QUOTE(x.%s)"
+		typ := strings.ToLower(v[1])
+		var expr string
+		switch typ {
+		case "int", "integer", "bigint", "tinyint", "smallint", "mediumint", "decimal", "numeric", "float", "double":
+			expr = fmt.Sprintf("'%s = ', IF(ISNULL(x.%s), 0, x.%s)", name, name, name)
+		case "date":
+			expr = fmt.Sprintf("'%s = ', IF(ISNULL(x.%s), QUOTE('1990-01-01'), QUOTE(x.%s))", name, name, name)
+		case "datetime":
+			expr = fmt.Sprintf("'%s = ', IF(ISNULL(x.%s), QUOTE('1990-01-01 00:00:00'), QUOTE(x.%s))", name, name, name)
+		case "varchar", "char", "text", "time":
+			expr = fmt.Sprintf("'%s = ', IF(ISNULL(x.%s), QUOTE('N'), QUOTE(x.%s))", name, name, name)
+		default:
+			expr = fmt.Sprintf("'%s = ', IF(ISNULL(x.%s), QUOTE('N'), QUOTE(x.%s))", name, name, name)
 		}
-		isNull = fmt.Sprintf(isNull, name)
-		setVal = fmt.Sprintf(setVal, name)
-		write(
-			&sb,
-			`'%s = ', IF(ISNULL(%s), %v, %s)`,
-			name,
-			isNull,
-			nullVal,
-			setVal,
-		)
+		write(&sb, expr)
 		if i < len(columns)-1 {
 			write(&sb, ", ', ', ")
 		}
