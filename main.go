@@ -61,9 +61,13 @@ func main() {
 
 	// TODO: create all referencing tables in localDb
 	foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][0])) // columns[0][0] should be primary key
+
+	// getting heirarchical ordering
+	inverseTopologicalOrdering := topologicalSort(foreignTables)
+
 	// appenc foreign tables to table slice
-	for _, array := range foreignTables {
-		s.tables = append(s.tables, array[0])
+	for _, tableName := range inverseTopologicalOrdering {
+		s.tables = append(s.tables, tableName)
 	}
 	for _, table := range s.tables {
 		log.Printf("Replicating %s", table)
