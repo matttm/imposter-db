@@ -56,20 +56,41 @@ func main() {
 	}
 	log.Printf("You chose %s", s.tables[0])
 
-	// get data to create template
-	createCommand := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], s.tables[0]))[0][1]
+	ReplaceDB(localDb, s.databases[0])
 	columns := QueryForTwoColumns(remoteDb, SELECT_COLUMNS(s.tables[0]))
 
-	// TODO: create all referencing tables in localDb
-	// foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][1])) // columns[0][1] should be primary key
+	// create all referencing tables in localDb
+	foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][0])) // columns[0][0] should be primary key
 
-	log.Println(createCommand)
-	log.Println(columns)
-	// form the select query that results in inserts
-	insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], s.tables[0], columns)
-	// get an insert for each row
-	inserts := QueryFor(remoteDb, insertTemplate)
-	Populate(localDb, s.databases[0], createCommand, inserts)
+	estimated, _ := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0]))[0].(float64)
+	MAX := 0.05
+	if estimated > MAX {
+		log.Panicf("Error: total tables size %d GB exceeds %d GB", estimated, MAX)
+	}
+
+	// TODO: ensure all tables to be in topo sort meet size requirements
+
+	// getting heirarchical ordering
+	inverseTopologicalOrdering := topologicalSort(foreignTables)
+
+	// appenc foreign tables to table slice
+	for _, tableName := range inverseTopologicalOrdering {
+		s.tables = append(s.tables, tableName)
+	}
+	for _, table := range s.tables {
+		log.Printf("Replicating %s", table)
+		// get data to create template
+		createCommand := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], table))[0][1]
+		columns = QueryForTwoColumns(remoteDb, SELECT_COLUMNS(table))
+
+		// log.Println(createCommand)
+		// log.Println(columns)
+		// form the select query that results in inserts
+		insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], table, columns)
+		// get an insert for each row
+		inserts := QueryFor(remoteDb, insertTemplate)
+		Populate(localDb, s.databases[0], createCommand, inserts)
+	}
 	// close db as were going to open it again in raw tcp form
 	localDb.Close()
 
