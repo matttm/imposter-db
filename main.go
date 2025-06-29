@@ -59,8 +59,16 @@ func main() {
 	ReplaceDB(localDb, s.databases[0])
 	columns := QueryForTwoColumns(remoteDb, SELECT_COLUMNS(s.tables[0]))
 
-	// TODO: create all referencing tables in localDb
+	// create all referencing tables in localDb
 	foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][0])) // columns[0][0] should be primary key
+
+	estimated, _ := SelectOneDynamic(FETCH_TABLES_SIZES(s.databases[0])).(int)
+	MAX := 0.05
+	if estimated > MAX {
+		log.Panicf("Error: tsble %s cannot be replicated as it defies size constraint", t)
+	}
+
+	// TODO: ensure all tables to be in topo sort meet size requirements
 
 	// getting heirarchical ordering
 	inverseTopologicalOrdering := topologicalSort(foreignTables)
