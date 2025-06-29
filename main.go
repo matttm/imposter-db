@@ -62,10 +62,10 @@ func main() {
 	// create all referencing tables in localDb
 	foreignTables := QueryForTwoColumns(remoteDb, FETCH_FOREIGN_TABLES(s.tables[0], columns[0][0])) // columns[0][0] should be primary key
 
-	estimated, _ := SelectOneDynamic(FETCH_TABLES_SIZES(s.databases[0])).(int)
+	estimated, _ := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0]))[0].(float64)
 	MAX := 0.05
 	if estimated > MAX {
-		log.Panicf("Error: tsble %s cannot be replicated as it defies size constraint", t)
+		log.Panicf("Error: total tables size %d GB exceeds %d GB", estimated, MAX)
 	}
 
 	// TODO: ensure all tables to be in topo sort meet size requirements
