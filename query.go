@@ -12,9 +12,9 @@ var (
 			AND REFERENCED_COLUMN_NAME = '%s';
 			`, table, column)
 	}
-	FETCH_GRAPH_EDGES = func(name string) string {
+	FETCH_GRAPH_EDGES = func(sname, tname string) string {
 		return fmt.Sprintf(`
-			SELECT
+			SELECT DISTINCT
 			PK_KCU.TABLE_NAME AS ParentTableName,
 			FK_KCU.TABLE_NAME AS ChildTableName
 			FROM
@@ -27,12 +27,11 @@ var (
 			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS PK_KCU
 			ON RC.UNIQUE_CONSTRAINT_SCHEMA = PK_KCU.CONSTRAINT_SCHEMA
 			AND RC.UNIQUE_CONSTRAINT_NAME = PK_KCU.CONSTRAINT_NAME
-			INNER JOIN
-			INFORMATION_SCHEMA.TABLES AS PT_Tables -- Join to get size information for the parent table
-			ON PK_KCU.TABLE_SCHEMA = PT_Tables.TABLE_SCHEMA
-			AND PK_KCU.TABLE_NAME = PT_Tables.TABLE_NAME
-			WHERE PK_KCU.TABLE_NAME = "%s";
-			`, name)
+			WHERE
+			PK_KCU.TABLE_SCHEMA = "%s" AND
+			FK_KCU.TABLE_SCHEMA = "%s" AND
+			(PK_KCU.TABLE_NAME = '%s' OR FK_KCU.TABLE_NAME = '%s');
+			`, sname, sname, tname, tname)
 	}
 	FETCH_TABLES_SIZES = func(schema string) string {
 		return fmt.Sprintf(`
