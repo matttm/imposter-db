@@ -64,7 +64,7 @@ func main() {
 	estimated, _ := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0]))[0].(float64)
 	MAX := 0.05
 	if estimated > MAX {
-		log.Panicf("Error: total tables size %d GB exceeds %d GB", estimated, MAX)
+		log.Panicf("Error: total tables size %f GB exceeds %f GB", estimated, MAX)
 	}
 
 	// getting heirarchical ordering
