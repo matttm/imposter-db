@@ -65,12 +65,18 @@ func main() {
 
 	// getting heirarchical ordering
 	inverseTopologicalOrdering, _ := topologicalSort(foreignTables)
+	// TODO: move this code to manip service
+	for i, v := range inverseTopologicalOrdering {
+		inverseTopologicalOrdering[i] = fmt.Sprintf("'%s'", v)
+	}
 	topoString := strings.Join(inverseTopologicalOrdering, ",")
 	inParam := fmt.Sprintf("(%s)", topoString)
 	estimated, _ := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))[0].(float64)
 	MAX := 0.05
 	if estimated > MAX {
 		log.Panicf("Error: total tables size %f GB exceeds %f GB", estimated, MAX)
+	} else {
+		fmt.Printf("Estimated replication size: %f", estimated)
 	}
 
 	return
