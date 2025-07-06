@@ -33,7 +33,7 @@ var (
 			(PK_KCU.TABLE_NAME = '%s' OR FK_KCU.TABLE_NAME = '%s');
 			`, sname, sname, tname, tname)
 	}
-	FETCH_TABLES_SIZES = func(schema string) string {
+	FETCH_TABLES_SIZES = func(schema, inArg string) string {
 		return fmt.Sprintf(`
 			SELECT
 			SUM((DATA_LENGTH + INDEX_LENGTH) / (1024.0 * 1024.0 * 1024.0)) AS TotalGB
@@ -41,8 +41,8 @@ var (
 			information_schema.TABLES
 			WHERE
 			TABLE_SCHEMA = '%s'
-			AND TABLLE_NAME IN ?;
-			`, schema)
+			AND TABLE_NAME IN %s;
+			`, schema, inArg)
 	}
 	SHOW_TABLE_QUERY = func(db string) string {
 		return fmt.Sprintf(`
