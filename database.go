@@ -124,18 +124,10 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 }
 func SelectOneDynamic(db *sql.DB, query string, params ...any) []any {
 	log.Printf(query)
-	row, err := db.Query(query, params...)
-	if err != nil {
-		fmt.Println("Error while querying database")
-		panic(err)
-	}
-	defer row.Close()
-	c, _ := row.Columns()
-	n := len(c)
+	row := db.QueryRow(query, params...)
+	n := 1
 	s := make([]any, n)
-	var _s float64
-	row.Scan(&_s)
-	fmt.Println(_s)
+	row.Scan(&s[0])
 	return s
 }
 

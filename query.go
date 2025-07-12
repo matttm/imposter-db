@@ -38,10 +38,10 @@ var (
 			SELECT
 			SUM((DATA_LENGTH + INDEX_LENGTH) / (1024.0 * 1024.0 * 1024.0)) AS TotalGB
 			FROM
-			information_schema.TABLES
+			information_schema.TABLES t
 			WHERE
-			TABLE_SCHEMA = '%s'
-			AND TABLE_NAME IN %s;
+			t.TABLE_SCHEMA = '%s'
+			AND t.TABLE_NAME IN %s;
 			`, schema, inArg)
 	}
 	SHOW_TABLE_QUERY = func(db string) string {
