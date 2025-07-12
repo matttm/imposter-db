@@ -122,8 +122,7 @@ func QueryForTwoColumns(db *sql.DB, query string) [][2]string {
 	}
 	return props
 }
-func SelectOneDynamic(db *sql.DB, query string, params ...interface{}) []interface{} {
-	var iprops []interface{}
+func SelectOneDynamic(db *sql.DB, query string, params ...any) []any {
 	log.Printf(query)
 	row, err := db.Query(query, params...)
 	if err != nil {
@@ -133,10 +132,11 @@ func SelectOneDynamic(db *sql.DB, query string, params ...interface{}) []interfa
 	defer row.Close()
 	c, _ := row.Columns()
 	n := len(c)
-	s := make([]interface{}, n)
-	row.Scan(s...)
-	iprops = append(iprops, s)
-	return iprops
+	s := make([]any, n)
+	var _s float64
+	row.Scan(&_s)
+	fmt.Println(_s)
+	return s
 }
 
 // ReplaceDB drops the specified database if it exists, recreates it, and switches the connection to use the new database.
