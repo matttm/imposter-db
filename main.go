@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 
@@ -35,6 +36,9 @@ func handleConn(c net.Conn, schema, tableName string) {
 }
 func main() {
 	s := selection{}
+	schemaFlag := flag.String("schema", "", "a string")
+	tableFlag := flag.String("table", "", "a string")
+	flag.Parse()
 
 	remoteDb := InitRemoteConnection()
 	defer remoteDb.Close()
@@ -45,16 +49,24 @@ func main() {
 
 	log.Printf("Checking for available databases...")
 	databases := QueryFor(remoteDb, SHOW_DB_QUERY)
-	s.databases = PromptSelection("Choose database", databases)
-	if len(s.databases) < 1 {
-		log.Panic("Error: no selection made")
+	if *schemaFlag == "" {
+		s.databases = PromptSelection("Choose database", databases)
+		if len(s.databases) < 1 {
+			log.Panic("Error: no selection made")
+		}
+	} else {
+		s.databases = []string{*schemaFlag}
 	}
 	log.Printf("You chose %s", s.databases[0])
 
 	table := QueryFor(remoteDb, SHOW_TABLE_QUERY(s.databases[0]))
-	s.tables = PromptSelection("Choose table", table)
-	if len(s.tables) < 1 {
-		log.Panic("Error: no selection made")
+	if *tableFlag == "" {
+		s.tables = PromptSelection("Choose table", table)
+		if len(s.tables) < 1 {
+			log.Panic("Error: no selection made")
+		}
+	} else {
+		s.tables = []string{*tableFlag}
 	}
 	log.Printf("You chose %s", s.tables[0])
 
@@ -71,9 +83,9 @@ func main() {
 	}
 	topoString := strings.Join(inverseTopologicalOrdering, ",")
 	inParam := fmt.Sprintf("(%s)", topoString)
-	estimated, _ := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))[0].(float64)
+	estimated := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))
 	MAX := 0.05
-	if estimated > MAX {
+	if *estimated > MAX {
 		log.Panicf("Error: total tables size %f GB exceeds %f GB", estimated, MAX)
 	} else {
 		fmt.Printf("Estimated replication size: %f", estimated)
