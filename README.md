@@ -73,7 +73,7 @@ username - USER -- where USER is the user of the remote database?
 password - PASS -- where PASS is the password of the above user in the remote database
 ```
 
-If this selection process is too cumbersome, you can also take a vantage of the optional flags:
+If this selection process is too cumbersome, you can also take advantage of the optional flags:
 
 - fk - indicates whether, the tables with a foreign key reference to the identified table, should be replicated
 - schema - name of the schema
