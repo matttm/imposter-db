@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"slices"
 	"strings"
 
 	"log"
@@ -59,13 +60,16 @@ func main() {
 			log.Panic("Error: one selection is currently supported")
 		}
 	} else {
+		if !slices.Contains(databases, *schemaFlag) {
+			panic("Fatal: provided schema is not visible on connection")
+		}
 		s.databases = []string{*schemaFlag}
 	}
 	log.Printf("You chose %s", s.databases[0])
 
-	table := QueryFor(remoteDb, SHOW_TABLE_QUERY(s.databases[0]))
+	tables := QueryFor(remoteDb, SHOW_TABLE_QUERY(s.databases[0]))
 	if *tableFlag == "" {
-		s.tables = PromptSelection("Choose table", table)
+		s.tables = PromptSelection("Choose table", tables)
 		if len(s.tables) < 1 {
 			log.Panic("Error: no selection made")
 		}
@@ -73,6 +77,9 @@ func main() {
 			log.Panic("Error: one selection is currently supported")
 		}
 	} else {
+		if !slices.Contains(tables, *tableFlag) {
+			panic("Fatal: provided table is not visible on connection")
+		}
 		s.tables = []string{*tableFlag}
 	}
 	log.Printf("You chose %s", s.tables[0])
