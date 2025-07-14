@@ -38,7 +38,7 @@ func main() {
 	s := selection{}
 	schemaFlag := flag.String("schema", "", "a string of the schema name")
 	tableFlag := flag.String("table", "", "a string of the table name")
-	fkFlag := flag.Bool("fk", false, "a boolean")
+	fkFlag := flag.Bool("fk", false, "a boolean indicating whether foreign tables of the chosen table should be created")
 	flag.Parse()
 
 	remoteDb := InitRemoteConnection()
