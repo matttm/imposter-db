@@ -29,6 +29,22 @@ type Proxy struct {
 	cancel            context.CancelFunc
 }
 
+// InitializeProxy sets up a new Proxy instance by establishing connections between a client and a remote MySQL server,
+// as well as a local MySQL server. It performs the initial handshake for both connections, configures client flags,
+// and prepares the Proxy for further use. The function requires the client connection, remote host, schema, table name,
+// a cancellation function, and user credentials. It returns a pointer to the initialized Proxy.
+//
+// Parameters:
+//   - client: net.Conn representing the incoming client connection.
+//   - host: string specifying the remote MySQL server address.
+//   - schema: string specifying the database schema to use.
+//   - tableName: string specifying the table name to use.
+//   - cancel: context.CancelFunc to allow cancellation of ongoing operations.
+//   - user: string for the username (used for local connection).
+//   - pass: string for the password (used for local connection).
+//
+// Returns:
+//   - *Proxy: a pointer to the initialized Proxy instance.
 func InitializeProxy(client net.Conn, host string, schema, tableName string, cancel context.CancelFunc, user, pass string) *Proxy {
 	p := &Proxy{}
 	p.cancel = cancel
@@ -65,10 +81,17 @@ func InitializeProxy(client net.Conn, host string, schema, tableName string, can
 	p.absoluteTableName = fmt.Sprintf("%s.%s", schema, tableName)
 	return p
 }
+
+// HandleCommand processes a command received by the Proxy instance.
+// It delegates the handling of the message to the HandleMessage function,
+// passing along the relevant client flags, client connection, remote connection,
+// local database reference, absolute table name, and a cancellation function.
 func (p *Proxy) HandleCommand() {
 	HandleMessage(p.clientFlags, p.client, p.remote, p.localDb, p.absoluteTableName, p.cancel)
 }
 
+// CloseProxy gracefully closes all connections associated with the Proxy instance,
+// including the remote, client, and local database connections.
 func (p *Proxy) CloseProxy() {
 	p.remote.Close()
 	p.client.Close()

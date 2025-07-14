@@ -12,6 +12,38 @@ var (
 			AND REFERENCED_COLUMN_NAME = '%s';
 			`, table, column)
 	}
+	FETCH_GRAPH_EDGES = func(sname, tname string) string {
+		return fmt.Sprintf(`
+			SELECT DISTINCT
+			PK_KCU.TABLE_NAME AS ParentTableName,
+			FK_KCU.TABLE_NAME AS ChildTableName
+			FROM
+			INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS RC
+			INNER JOIN
+			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS FK_KCU
+			ON RC.CONSTRAINT_SCHEMA = FK_KCU.CONSTRAINT_SCHEMA
+			AND RC.CONSTRAINT_NAME = FK_KCU.CONSTRAINT_NAME
+			INNER JOIN
+			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS PK_KCU
+			ON RC.UNIQUE_CONSTRAINT_SCHEMA = PK_KCU.CONSTRAINT_SCHEMA
+			AND RC.UNIQUE_CONSTRAINT_NAME = PK_KCU.CONSTRAINT_NAME
+			WHERE
+			PK_KCU.TABLE_SCHEMA = "%s" AND
+			FK_KCU.TABLE_SCHEMA = "%s" AND
+			(PK_KCU.TABLE_NAME = '%s' OR FK_KCU.TABLE_NAME = '%s');
+			`, sname, sname, tname, tname)
+	}
+	FETCH_TABLES_SIZES = func(schema, inArg string) string {
+		return fmt.Sprintf(`
+			SELECT
+			SUM((DATA_LENGTH + INDEX_LENGTH) / (1024.0 * 1024.0 * 1024.0)) AS TotalGB
+			FROM
+			information_schema.TABLES t
+			WHERE
+			t.TABLE_SCHEMA = '%s'
+			AND t.TABLE_NAME IN %s;
+			`, schema, inArg)
+	}
 	SHOW_TABLE_QUERY = func(db string) string {
 		return fmt.Sprintf(`
 			SELECT TABLE_NAME

@@ -1,5 +1,5 @@
-#    docker build -t my-mysql .
-#    docker run -d --name my-mysql -p 3306:3306 my-mysql
+#    docker build -t imposter-img .
+#    docker run -d --name imposter-cont -p 3306:3306 imposter-img                                                                                                   ─╯
 # Use the official MySQL image
 FROM mysql:8.0.35
 

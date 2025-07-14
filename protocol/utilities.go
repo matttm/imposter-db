@@ -48,6 +48,11 @@ func ReadVarLengthInt(r io.Reader) (uint64, int) {
 	}
 	return binary.LittleEndian.Uint64(buf), sz + 1 // we add 1 to account for the examined byte
 }
+
+// ReadLengthEncodedString reads a length-encoded string from the provided io.Reader.
+// It first reads a variable-length integer to determine the length of the string,
+// then reads and returns the string of that length.
+// If an error occurs during reading, an empty string is returned.
 func ReadLengthEncodedString(r io.Reader) string {
 	n, _ := ReadVarLengthInt(r)
 	return ReadFixedLengthString(r, n)
@@ -77,6 +82,10 @@ func ReadNullTerminatedString(r io.Reader) string {
 	}
 	return string(name)
 }
+
+// ReadFixedLengthString reads exactly n bytes from the provided io.Reader and returns them as a string.
+// If an error occurs during reading, the function panics.
+// Note: The returned string may contain null bytes or other non-printable characters if present in the input.
 func ReadFixedLengthString(r io.Reader, n uint64) string {
 	s := make([]byte, n)
 	_, err := r.Read(s)
@@ -85,6 +94,9 @@ func ReadFixedLengthString(r io.Reader, n uint64) string {
 	}
 	return string(s)
 }
+
+// ReadStringEOF reads and returns a string from the provided bytes.Reader until EOF.
+// It utilizes ReadFixedLengthString to read the remaining bytes as a string.
 func ReadStringEOF(r *bytes.Reader) string {
 	return ReadFixedLengthString(r, uint64(r.Len()))
 }
@@ -141,6 +153,19 @@ func isNonASCIIorEmpty(s string) bool {
 	}
 	return false
 }
+
+// SaveToFile writes the provided data to a file in the specified directory with a timestamped filename.
+// It creates the directory if it does not exist. The filename is constructed by appending the current
+// timestamp to the provided newFilename, followed by the ".capture" extension. Returns an error if
+// directory creation, file creation, or writing fails.
+//
+// Parameters:
+//   - data: The byte slice to be written to the file.
+//   - newDir: The directory where the file will be saved.
+//   - newFilename: The base name for the file (timestamp and extension will be appended).
+//
+// Returns:
+//   - error: An error if any operation fails, otherwise nil.
 
 func SaveToFile(data []byte, newDir, newFilename string) error {
 	currentTime := time.Now()

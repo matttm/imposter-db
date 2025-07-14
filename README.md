@@ -2,7 +2,7 @@
 
 ## Description
 
-This program acts as a mySQL proxy database, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
+This program acts as a proxy database for MySQL, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
 
 Once you specified the table you want to spoof, it will be replicated inside the running, docker container, so once you connect to the proxy, you will see all the tables from the remote, but this spoofed table will be coming from the docker container, meaning that you can change this table without affecting other people that are using the remote database.
 
@@ -48,7 +48,7 @@ export DB_NAME=""
 
 Then run it with:
 ```
-./imposter-db
+./imposter-db [-fk] [-schema=NAME] [-table=NAME]
 ```
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
@@ -75,7 +75,15 @@ port - 3307
 username - USER -- where USER is the user of the remote database
 password - PASS -- where PASS is the password of the above user in the remote database
 ```
-You can connect to it from an DBMS or you can set a local running API to use it as the database.
+
+If this selection process is too cumbersome, you can also take advantage of the optional flags:
+
+- fk - indicates whether, the tables with a foreign key reference to the identified table, should be replicated
+- schema - name of the schema
+- table - name of the table
+
+You can connect to it from a DBMS or you can set a local running API to use it as the database.
+
 # Architecture
 
 Here's a flow chart depicting the architecture of what the proxy does:

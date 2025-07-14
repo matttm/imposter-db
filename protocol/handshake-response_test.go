@@ -65,3 +65,63 @@ func Test_Handshake_Response_Encode(t *testing.T) {
 		)
 	}
 }
+
+// TODO: contemplate combining this into the other test
+func Test_Handshake_Response_Flags_Decode(t *testing.T) {
+	type FlagTest struct {
+		encoded []byte
+		flags   map[uint32]bool
+	}
+	var flagTests []FlagTest = []FlagTest{
+		{
+			encoded: []byte{0xcd, 0xf3, 0xaa, 0x0, 0x0, 0x0, 0x0, 0x0, 0xe0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4d, 0x50, 0x57, 0x33, 0x0, 0x14, 0x5, 0xfa, 0xb0, 0x7e, 0x8b, 0xa9, 0x56, 0x53, 0x78, 0x91, 0x8b, 0xaa, 0x53, 0x4f, 0xa6, 0xc8, 0xa6, 0xee, 0xaa, 0xf9, 0x69, 0x64, 0x6d, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x64, 0x62, 0x0, 0x6d, 0x79, 0x73, 0x71, 0x6c, 0x5f, 0x6e, 0x61, 0x74, 0x69, 0x76, 0x65, 0x5f, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x0},
+			flags: map[uint32]bool{
+				CLIENT_LONG_PASSWORD:                  true,
+				CLIENT_FOUND_ROWS:                     false,
+				CLIENT_LONG_FLAG:                      true,
+				CLIENT_CONNECT_WITH_DB:                true,
+				CLIENT_NO_SCHEMA:                      false,
+				CLIENT_COMPRESS:                       false,
+				CLIENT_ODBC:                           true,
+				CLIENT_LOCAL_FILES:                    true,
+				CLIENT_IGNORE_SPACE:                   true,
+				CLIENT_PROTOCOL_41:                    true,
+				CLIENT_INTERACTIVE:                    false,
+				CLIENT_SSL:                            false,
+				CLIENT_IGNORE_SIGPIPE:                 true,
+				CLIENT_TRANSACTIONS:                   true,
+				CLIENT_RESERVED:                       true,
+				CLIENT_RESERVED2:                      true,
+				CLIENT_MULTI_STATEMENTS:               false,
+				CLIENT_MULTI_RESULTS:                  true,
+				CLIENT_PS_MULTI_RESULTS:               false,
+				CLIENT_PLUGIN_AUTH:                    true,
+				CLIENT_CONNECT_ATTRS:                  false,
+				CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA: true,
+				CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS:   false,
+				CLIENT_SESSION_TRACK:                  true,
+				CLIENT_DEPRECATE_EOF:                  false,
+				CLIENT_OPTIONAL_RESULTSET_METADATA:    false,
+				CLIENT_ZSTD_COMPRESSION_ALGORITHM:     false,
+				CLIENT_QUERY_ATTRIBUTES:               false,
+				MULTI_FACTOR_AUTHENTICATION:           false,
+				CLIENT_CAPABILITY_EXTENSION:           false,
+				CLIENT_SSL_VERIFY_SERVER_CERT:         false,
+				CLIENT_REMEMBER_OPTIONS:               false,
+			},
+		},
+	}
+	for _, entry := range flagTests {
+		d, err := DecodeHandshakeResponse(entry.encoded)
+		if err != nil {
+			panic(err)
+		}
+		for k := range entry.flags {
+			assert.Equal(
+				t,
+				d.ClientFlag&k != 0,
+				entry.flags[k],
+			)
+		}
+	}
+}
