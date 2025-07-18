@@ -86,29 +86,36 @@ func main() {
 
 	ReplaceDB(localDb, s.databases[0])
 
+	var foreignTables [][2]string
 	if *fkFlag {
 		// create all referencing tables in localDb
-		foreignTables := QueryForTwoColumns(remoteDb, FETCH_GRAPH_EDGES(s.databases[0], s.tables[0])) // columns[0][0] should be primary key
+		foreignTables = QueryForTwoColumns(remoteDb, FETCH_GRAPH_EDGES(s.databases[0], s.tables[0]))
 
-		// getting heirarchical ordering
-		inverseTopologicalOrdering, _ := topologicalSort(foreignTables)
-		// TODO: move this code to manip service
-		for i, v := range inverseTopologicalOrdering {
-			inverseTopologicalOrdering[i] = fmt.Sprintf("'%s'", v)
-		}
-		topoString := strings.Join(inverseTopologicalOrdering, ",")
-		inParam := fmt.Sprintf("(%s)", topoString)
-		estimated := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))
-		MAX := 0.05
-		if *estimated > MAX {
-			log.Printf("Error: total tables size %f GB exceeds %f GB", *estimated, MAX)
-			log.Printf("Falling back to ignoring foreign keys")
-		} else {
-			log.Printf("Estimated replication size: %f", *estimated)
-			s.tables = []string{}
-			for _, tableName := range inverseTopologicalOrdering {
-				s.tables = append(s.tables, tableName)
-			}
+	} else {
+		// copy all child tables
+		foreignTables = QueryForTwoColumns(remoteDb, FETCH_PARENT_GRAPH_EDGES(s.databases[0], s.tables[0]))
+	}
+	// size check
+	log.Printf("Starting topological sort: %v\n", foreignTables)
+	// getting heirarchical ordering
+	inverseTopologicalOrdering, _ := topologicalSort(foreignTables)
+	// TODO: move this code to manip service
+	var stringified []string
+	for _, v := range inverseTopologicalOrdering {
+		stringified = append(stringified, fmt.Sprintf("'%s'", v))
+	}
+	topoString := strings.Join(stringified, ",")
+	inParam := fmt.Sprintf("(%s)", topoString)
+	estimated := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))
+	MAX := 0.05
+	if *estimated > MAX {
+		log.Printf("Error: total tables size %f GB exceeds %f GB", *estimated, MAX)
+		log.Printf("Falling back to ignoring foreign keys")
+	} else {
+		log.Printf("Estimated replication size: %f", *estimated)
+		s.tables = []string{}
+		for _, tableName := range inverseTopologicalOrdering {
+			s.tables = append(s.tables, tableName)
 		}
 	}
 
