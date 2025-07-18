@@ -109,8 +109,8 @@ func main() {
 	estimated := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))
 	MAX := 0.05
 	if *estimated > MAX {
-		log.Printf("Error: total tables size %f GB exceeds %f GB", *estimated, MAX)
-		log.Printf("Falling back to ignoring foreign keys")
+		log.Panicf("Error: total tables size %f GB exceeds %f GB", *estimated, MAX)
+		// log.Printf("Falling back to ignoring foreign keys")
 	} else {
 		log.Printf("Estimated replication size: %f", *estimated)
 		s.tables = []string{}
