@@ -15,23 +15,33 @@ var (
 	FETCH_GRAPH_EDGES = func(sname, tname string) string {
 		return fmt.Sprintf(`
 			SELECT DISTINCT
-			PK_KCU.TABLE_NAME AS ParentTableName,
-			FK_KCU.TABLE_NAME AS ChildTableName
+			kcu.TABLE_NAME AS referencing_table_name,
+			kcu.REFERENCED_TABLE_NAME AS referenced_table_name
 			FROM
-			INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS RC
-			INNER JOIN
-			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS FK_KCU
-			ON RC.CONSTRAINT_SCHEMA = FK_KCU.CONSTRAINT_SCHEMA
-			AND RC.CONSTRAINT_NAME = FK_KCU.CONSTRAINT_NAME
-			INNER JOIN
-			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS PK_KCU
-			ON RC.UNIQUE_CONSTRAINT_SCHEMA = PK_KCU.CONSTRAINT_SCHEMA
-			AND RC.UNIQUE_CONSTRAINT_NAME = PK_KCU.CONSTRAINT_NAME
+			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
 			WHERE
-			PK_KCU.TABLE_SCHEMA = "%s" AND
-			FK_KCU.TABLE_SCHEMA = "%s" AND
-			(PK_KCU.TABLE_NAME = '%s' OR FK_KCU.TABLE_NAME = '%s');
-			`, sname, sname, tname, tname)
+			kcu.TABLE_SCHEMA = '%s'
+			AND ((
+			kcu.TABLE_NAME = '%s'
+			AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+			) OR (
+			kcu.REFERENCED_TABLE_NAME = '%s'
+			AND kcu.TABLE_NAME IS NOT NULL
+			));
+			`, sname, tname, tname)
+	}
+	FETCH_PARENT_GRAPH_EDGES = func(sname, tname string) string {
+		return fmt.Sprintf(`
+			SELECT DISTINCT
+			kcu.REFERENCED_TABLE_NAME AS referenced_table_name,
+			kcu.TABLE_NAME AS referencing_table_name
+			FROM
+			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
+			WHERE
+			kcu.TABLE_SCHEMA = '%s'
+			AND kcu.TABLE_NAME = '%s'
+			AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+			`, sname, tname)
 	}
 	FETCH_TABLES_SIZES = func(schema, inArg string) string {
 		return fmt.Sprintf(`
@@ -48,9 +58,9 @@ var (
 		return fmt.Sprintf(`
 			SELECT TABLE_NAME
 			FROM INFORMATION_SCHEMA.TABLES 
-			WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = '%s'
-			AND TABLE_ROWS < 300 AND TABLE_ROWS > 35;
-			`, db)
+			WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = '%s';`, db)
+		// AND TABLE_ROWS < 300 AND TABLE_ROWS > 35;
+		// `, db)
 	}
 	SHOW_CREATE = func(dbName, tableName string) string {
 		return fmt.Sprintf("SHOW CREATE TABLE %s.%s;", dbName, tableName)
