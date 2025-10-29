@@ -104,7 +104,7 @@ Here's a flow chart depicting the architecture of what the proxy does:
                | Request Routing  |
                +------------------+
                     |          |
-    everything rlse |          | spoofed table
+    everything else |          | spoofed table
                     V          V
         +-----------+      +-----------+
         | remote db |      | local db  |
