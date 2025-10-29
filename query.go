@@ -31,16 +31,47 @@ var (
 			`, sname, tname, tname)
 	}
 	FETCH_PARENT_GRAPH_EDGES = func(sname, tname string) string {
-		return fmt.Sprintf(`
-			SELECT DISTINCT
-			kcu.REFERENCED_TABLE_NAME AS referenced_table_name,
-			kcu.TABLE_NAME AS referencing_table_name
+		return fmt.Sprintf(`	
+			WITH RECURSIVE Successors AS (
+			-- Anchor Member: Start with the tables directly referenced by your initial table
+			SELECT
+			kcu.TABLE_SCHEMA AS source_database,
+			kcu.TABLE_NAME AS source_table,
+			kcu.REFERENCED_TABLE_SCHEMA AS referenced_database,
+			kcu.REFERENCED_TABLE_NAME AS referenced_table,
+			1 AS level -- Keep track of the recursion depth
 			FROM
 			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
 			WHERE
 			kcu.TABLE_SCHEMA = '%s'
 			AND kcu.TABLE_NAME = '%s'
 			AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+
+			UNION DISTINCT
+
+			-- Recursive Member: Find tables referenced by the tables found in the previous step
+			SELECT
+			kcu.TABLE_SCHEMA AS source_database,
+			kcu.TABLE_NAME AS source_table,
+			kcu.REFERENCED_TABLE_SCHEMA AS referenced_database,
+			kcu.REFERENCED_TABLE_NAME AS referenced_table,
+			s.level + 1 AS level
+			FROM
+			INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
+			INNER JOIN
+			Successors AS s ON kcu.TABLE_SCHEMA = s.referenced_database
+			AND kcu.TABLE_NAME = s.referenced_table
+			WHERE
+			kcu.REFERENCED_TABLE_NAME IS NOT NULL
+			)
+			SELECT
+			source_table,
+			referenced_table,
+			level
+			FROM
+			Successors
+			ORDER BY
+			level, source_table, referenced_table;
 			`, sname, tname)
 	}
 	FETCH_TABLES_SIZES = func(schema, inArg string) string {
