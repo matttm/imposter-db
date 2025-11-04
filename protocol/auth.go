@@ -35,10 +35,10 @@ const (
 
 var authMap map[string]AuthenticationMethod = map[string]AuthenticationMethod{
 	// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_protocol_connection_phase_authentication_methods_native_password_authentication.html
-	MYSQL_NATIVE_PASSWORD: AuthenticationMethod{Fn: sha1Wrapper, Sz: sha1.Size},
+	MYSQL_NATIVE_PASSWORD: {Fn: sha1Wrapper, Sz: sha1.Size},
 	// https://dev.mysql.com/doc/dev/mysql-server/8.4.3/page_caching_sha2_authentication_exchanges.html#sect_caching_sha2_info
-	CACHING_SHA2_PASSWORD: AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
-	SHA256_PASSWORD:       AuthenticationMethod{Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
+	CACHING_SHA2_PASSWORD: {Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
+	SHA256_PASSWORD:       {Fn: sha256Wrapper, Sz: sha256.Size}, //	this is in development
 }
 
 func sha1Wrapper(data []byte) []byte {
@@ -74,7 +74,7 @@ func encryptPassword(pemKey, password, salt []byte) []byte {
 	password = append(password, 0x00)
 	scrambled := xorScramble(password, salt)
 	log.Printf("Scrambled password (hex): %x", scrambled)
-	e, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPub, scrambled)
+	e, err := rsa.EncryptOAEP(sha1.New(), rand.Reader, rsaPub, scrambled, nil)
 	log.Printf("Encrypted password len: %d", len(e))
 	if err != nil {
 		log.Print(err)
