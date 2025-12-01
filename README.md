@@ -18,20 +18,13 @@ Have you ever been in development and the needed data is in the test environment
 
 ## Getting started
 
-To begin, you must have Go and Docker installed. In case you are on mac, docker won't work by itself, unless you install docker desktop. If you're like me and PREFER CLIs, then install, `docker` and `colima` which is a container runtime, and can serve as a "docker daemon".
+To begin, you must have Go and Docker installed.
 
-Once you have the prereqs, you need to run the docker daemon, which you can do if using Colima by running:
+Then start the docker service:
 ```
-colima start
+docker compose up
 ```
-Then, you'll need to build the docker image and then start a container:
-```
-docker build -t imposter-img .
-
-docker run -d --name imposter-cont -p 3306:3306 imposter-img
-```
-
-Then run:
+and in a different terminal, run:
 ```
 go mod download  # to install all dependencies
 
