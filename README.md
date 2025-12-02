@@ -80,33 +80,8 @@ You can connect to it from a DBMS or you can set a local running API to use it a
 # Architecture
 
 Here's a flow chart depicting the architecture of what the proxy does:
-```
-+---------+      +---------+
-| Client  |----->| Proxy   |
-+---------+      +---------+
-                     |
-                     | Analyzes Request Content
-                     V
-               +------------------+
-               | Content Analysis |
-               +------------------+
-                     |
-                     | Extracts Table Name
-                     V
-               +------------------+
-               | Request Routing  |
-               +------------------+
-                    |          |
-    everything else |          | spoofed table
-                    V          V
-        +-----------+      +-----------+
-        | remote db |      | local db  |
-        |           |      |           |
-        +-----------+      +-----------+
-             ^  |          |  ^
-             |  | Response |  |
-             +--+----------+--+
-```
+<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/11d7c52e-93cb-48f5-ad02-15a3fcce05dc" />
+
 
 ## Authors
 
