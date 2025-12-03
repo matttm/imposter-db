@@ -45,7 +45,7 @@ Then run it with:
 ```
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
-Chooose DB:
+Choose a database:
 ```
 Choose a database:
 > A
