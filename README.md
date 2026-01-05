@@ -20,46 +20,33 @@ Have you ever been in development and the needed data is in the test environment
 
 To begin, you must have Go and Docker installed.
 
-Then start the docker service:
+### Step 1: Initial Understanding with Dummy Remote
+
+First, start the docker service to launch a dummy remote database for initial understanding:
 ```
 docker compose up
 ```
-and in a different terminal, run:
-```
-go mod download  # to install all dependencies
 
-go build  # creates binary
-```
-These variables should be in the environment of the terminal running the proxy and should be the information you normally use to correct directly to the remote:
-```
-export DB_HOST=""
-export DB_USER=""
-export DB_PASS=""
-export DB_PORT=""
-export DB_NAME=""
-```
+This will set up a local MySQL instance that you can use to familiarize yourself with the proxy functionality without connecting to a real remote database.
 
-Then run it with:
-```
-./imposter-db [-fk] [-schema=NAME] [-table=NAME]
-```
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
 Choose a database:
 ```
 Choose a database:
-> A
-> B
-> C
+> TEST-DB
 ```
 Using space for select and enter to continue, then select a table.
 ```
 Select a table:
-> D
-> E
-> F
+> application_gates
+> application
+> user
+> user_types
 ```
-After choosing those, **a replica table `D` will be made inside a replica database `A` in the running docker container**.
+After choosing those, **a replica table will be made inside a replica database in the running docker container**.
+
+In a scenario, like this, I would replicate the `application_gates table`, this would allow me to locally specify my own timeline for these gates, which could be very powerful when trying to develop with data that may only exist in a test environment.
 
 Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the credentials needed to access the remote.
 ```
@@ -76,6 +63,34 @@ If this selection process is too cumbersome, you can also take advantage of the 
 - table - name of the table
 
 You can connect to it from a DBMS or you can set a local running API to use it as the database.
+
+### Step 2: Prepare the Proxy
+
+In a different terminal, install dependencies and build the binary:
+```
+go mod download  # to install all dependencies
+
+go build  # creates binary
+```
+
+### Step 3: Running with Real Remote (When Ready)
+
+When you're ready to work with a real remote database, you'll need to:
+
+1. **Configure your connection details** in `.env.local` which specifies all the required variables. You will most likely only need to modify the remote forms of the variables
+
+2. **Start the local database container** for the proxy to use:
+```
+docker compose up localdb
+```
+
+This starts only the localdb container which will store the spoofed tables locally while the proxy connects to your real remote database.
+
+3. **Source the environment file and run the proxy**:
+```
+source .env.local
+./imposter-db [-fk] [-schema=NAME] [-table=NAME]
+```
 
 # Architecture
 

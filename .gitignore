@@ -1,5 +1,4 @@
 main
 imposter-db
-.env*
-*.env
+.env.work
 .DS_Store

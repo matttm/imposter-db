@@ -1,10 +1,43 @@
-
 version: '3.8'
 
 services:
-  webapp:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  localdb:
+    image: mysql:8.0
+    container_name: imposter-local
+    environment:
+      MYSQL_ROOT_PASSWORD: root
     ports:
       - "3306:3306"
+    volumes:
+      - ./my.cnf:/etc/mysql/conf.d/my.cnf
+      - localdb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+      timeout: 5s
+
+  db:
+    image: mysql:8.0
+    container_name: imposter-remote
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: TEST_DB
+      MYSQL_USER: ADMIN
+      MYSQL_PASSWORD: ADMIN
+    ports:
+      - "3307:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+      timeout: 5s
+
+volumes:
+  localdb-data:
+  db-data:
