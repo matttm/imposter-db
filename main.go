@@ -22,7 +22,7 @@ type selection struct {
 
 func handleConn(c net.Conn, schema, tableName string) {
 	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
-	p := protocol.InitializeProxy(c, host, schema, tableName, cancel, user, pass)
+	p := protocol.InitializeProxy(c, localHost, schema, tableName, cancel, localUser, localPass)
 
 	log.Printf("new connection: %s\n", c.RemoteAddr())
 	defer p.CloseProxy()
@@ -90,7 +90,6 @@ func main() {
 	if *fkFlag {
 		// create all referencing tables in localDb
 		foreignTables = QueryForTwoColumns(remoteDb, FETCH_GRAPH_EDGES(s.databases[0], s.tables[0]))
-
 	} else {
 		// copy all child tables
 		foreignTables = QueryForTwoColumns(remoteDb, FETCH_PARENT_GRAPH_EDGES(s.databases[0], s.tables[0]))

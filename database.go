@@ -10,11 +10,16 @@ import (
 )
 
 var (
-	port   = "3306"
-	host   = os.Getenv("DB_HOST")
-	user   = os.Getenv("DB_USER")
-	pass   = os.Getenv("DB_PASS")
-	dbName = os.Getenv("DB_NAME")
+	remotePort   = os.Getenv("REMOTE_DB_PORT")
+	remoteHost   = os.Getenv("REMOTE_DB_HOST")
+	remoteUser   = os.Getenv("REMOTE_DB_USER")
+	remotePass   = os.Getenv("REMOTE_DB_PASS")
+	remoteDbName = os.Getenv("REMOTE_DB_NAME")
+	localPort    = os.Getenv("LOCAL_DB_PORT")
+	localHost    = os.Getenv("LOCAL_DB_HOST")
+	localUser    = os.Getenv("LOCAL_DB_USER")
+	localPass    = os.Getenv("LOCAL_DB_PASS")
+	localDbName  = os.Getenv("LOCAL_DB_NAME")
 )
 
 // InitializeDatabase establishes a connection to a MySQL database using the provided
@@ -60,7 +65,7 @@ func InitializeDatabase(user, pass, host, port, dbname string) *sql.DB {
 //	*sql.DB: A pointer to the established database connection.
 func InitRemoteConnection() *sql.DB {
 	// create connection to ask user what should be imposed
-	return InitializeDatabase(user, pass, host, port, dbName)
+	return InitializeDatabase(remoteUser, remotePass, remoteHost, remotePort, remoteDbName)
 }
 
 // InitLocalDatabase initializes and returns a connection to a local MySQL database
@@ -68,7 +73,7 @@ func InitRemoteConnection() *sql.DB {
 // It returns a pointer to the sql.DB instance.
 // The database name is left empty, so the connection is established without selecting a specific database.
 func InitLocalDatabase() *sql.DB {
-	return InitializeDatabase("root", "mypassword", "127.0.0.1", "3306", "")
+	return InitializeDatabase(localUser, localPass, localHost, localPort, localDbName)
 }
 
 // QueryFor executes the provided SQL query on the given database connection,
@@ -136,7 +141,6 @@ func SelectOneDynamic(db *sql.DB, query string, params ...any) *float64 {
 func ReplaceDB(db *sql.DB, dbName string) {
 	_, err := db.Exec("SET sql_mode=''")
 	if err != nil {
-
 		panic(err)
 	}
 	_, err = db.Exec(DROP_DB(dbName))

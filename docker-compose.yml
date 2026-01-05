@@ -6,8 +6,6 @@ services:
     container_name: imposter-local
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: ADMIN
-      MYSQL_PASSWORD: ADMIN
     ports:
       - "3306:3306"
     volumes:
