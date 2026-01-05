@@ -29,6 +29,41 @@ docker compose up
 
 This will set up a local MySQL instance that you can use to familiarize yourself with the proxy functionality without connecting to a real remote database.
 
+Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
+
+Choose a database:
+```
+Choose a database:
+> TEST-DB
+```
+Using space for select and enter to continue, then select a table.
+```
+Select a table:
+> application_gates
+> application
+> user
+> user_types
+```
+After choosing those, **a replica table will be made inside a replica database in the running docker container**.
+
+In a scenario, like this, I would replicate the `application_gates table`, this would allow me to locally specify my own timeline for these gates, which could be very powerful when trying to develop with data that may only exist in a test environment.
+
+Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the credentials needed to access the remote.
+```
+host -  127.0.0.1
+port - 3307
+username - USER -- where USER is the user of the remote database
+password - PASS -- where PASS is the password of the above user in the remote database
+```
+
+If this selection process is too cumbersome, you can also take advantage of the optional flags:
+
+- fk - indicates whether, the tables with a foreign key reference to the identified table, should be replicated
+- schema - name of the schema
+- table - name of the table
+
+You can connect to it from a DBMS or you can set a local running API to use it as the database.
+
 ### Step 2: Prepare the Proxy
 
 In a different terminal, install dependencies and build the binary:
@@ -63,39 +98,6 @@ This starts only the localdb container which will store the spoofed tables local
 source .env.local
 ./imposter-db [-fk] [-schema=NAME] [-table=NAME]
 ```
-Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
-
-Choose a database:
-```
-Choose a database:
-> A
-> B
-> C
-```
-Using space for select and enter to continue, then select a table.
-```
-Select a table:
-> D
-> E
-> F
-```
-After choosing those, **a replica table `D` will be made inside a replica database `A` in the running docker container**.
-
-Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the credentials needed to access the remote.
-```
-host -  127.0.0.1
-port - 3307
-username - USER -- where USER is the user of the remote database
-password - PASS -- where PASS is the password of the above user in the remote database
-```
-
-If this selection process is too cumbersome, you can also take advantage of the optional flags:
-
-- fk - indicates whether, the tables with a foreign key reference to the identified table, should be replicated
-- schema - name of the schema
-- table - name of the table
-
-You can connect to it from a DBMS or you can set a local running API to use it as the database.
 
 # Architecture
 
