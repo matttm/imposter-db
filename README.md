@@ -77,14 +77,7 @@ go build  # creates binary
 
 When you're ready to work with a real remote database, you'll need to:
 
-1. **Configure your connection details** in `.env.local` which specifies all the required variables:
-```
-DB_HOST=""
-DB_USER=""
-DB_PASS=""
-DB_PORT=""
-DB_NAME=""
-```
+1. **Configure your connection details** in `.env.local` which specifies all the required variables. You will most likely only need to modify the remote forms of the variables
 
 2. **Start the local database container** for the proxy to use:
 ```
