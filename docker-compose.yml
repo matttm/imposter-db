@@ -9,6 +9,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
+      - ./my.cnf:/etc/mysql/conf.d/my.cnf
       - localdb-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]

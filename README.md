@@ -20,27 +20,47 @@ Have you ever been in development and the needed data is in the test environment
 
 To begin, you must have Go and Docker installed.
 
-Then start the docker service:
+### Step 1: Initial Understanding with Dummy Remote
+
+First, start the docker service to launch a dummy remote database for initial understanding:
 ```
 docker compose up
 ```
-and in a different terminal, run:
+
+This will set up a local MySQL instance that you can use to familiarize yourself with the proxy functionality without connecting to a real remote database.
+
+### Step 2: Prepare the Proxy
+
+In a different terminal, install dependencies and build the binary:
 ```
 go mod download  # to install all dependencies
 
 go build  # creates binary
 ```
-These variables should be in the environment of the terminal running the proxy and should be the information you normally use to correct directly to the remote:
+
+### Step 3: Running with Real Remote (When Ready)
+
+When you're ready to work with a real remote database, you'll need to:
+
+1. **Configure your connection details** in `.env.local` which specifies all the required variables:
 ```
-export DB_HOST=""
-export DB_USER=""
-export DB_PASS=""
-export DB_PORT=""
-export DB_NAME=""
+DB_HOST=""
+DB_USER=""
+DB_PASS=""
+DB_PORT=""
+DB_NAME=""
 ```
 
-Then run it with:
+2. **Start the local database container** for the proxy to use:
 ```
+docker compose up localdb
+```
+
+This starts only the localdb container which will store the spoofed tables locally while the proxy connects to your real remote database.
+
+3. **Source the environment file and run the proxy**:
+```
+source .env.local
 ./imposter-db [-fk] [-schema=NAME] [-table=NAME]
 ```
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
