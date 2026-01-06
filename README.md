@@ -20,7 +20,7 @@ Have you ever been in development and the needed data is in the test environment
 
 To begin, you must have Go and Docker installed.
 
-### Step 1: Initial Understanding with Dummy Remote
+### Initial Understanding with Dummy Remote
 
 First, start the docker service to launch a dummy remote database for initial understanding:
 ```
@@ -64,7 +64,7 @@ If this selection process is too cumbersome, you can also take advantage of the 
 
 You can connect to it from a DBMS or you can set a local running API to use it as the database.
 
-### Step 2: Prepare the Proxy
+### Prepare the Proxy
 
 In a different terminal, install dependencies and build the binary:
 ```
@@ -73,9 +73,9 @@ go mod download  # to install all dependencies
 go build  # creates binary
 ```
 
-### Step 3: Running with Real Remote (When Ready)
+### Running with Real Remote (When Ready)
 
-When you're ready to work with a real remote database, you'll need to:
+When you're ready to work with a real remote database, follow this instead of the dummy remote setup.
 
 1. **Configure your connection details** in `.env.local` which specifies all the required variables. You will most likely only need to modify the remote forms of the variables
 
