@@ -2,7 +2,7 @@
 
 ## Description
 
-This program acts as a proxy database for MySQL, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers.
+This program acts as a proxy database, for a remote MySQL server, in which, any one table can be spoofed, allowing developers the ability to work without conflicting with other developers or testers. The proxy allos the developer to customize the "spoofed" table locally, while being connected to the remote database. The power of this can be seen when connecting and API or DBMS to the proxy. So physically, there are two different databases, the local and the remote, the API or DBMS will only be aware of the proxy database.
 
 Once you specified the table you want to spoof, it will be replicated inside the running, docker container, so once you connect to the proxy, you will see all the tables from the remote, but this spoofed table will be coming from the docker container, meaning that you can change this table without affecting other people that are using the remote database.
 
