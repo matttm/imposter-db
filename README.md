@@ -29,6 +29,15 @@ docker compose up
 
 This will set up a local MySQL instance that you can use to familiarize yourself with the proxy functionality without connecting to a real remote database.
 
+### Prepare the Proxy
+
+In a different terminal, install dependencies and build the binary:
+```
+go mod download  # to install all dependencies
+
+go build  # creates binary
+```
+
 Continue by selecting the schema and table to be spoofed, as the program is interactive. After this, the proxy will begin running. The idea is that you connect your DBMS and your locally running APIs to this proxy, so that you can modify the locally spoofed table, without changing configurations that impact others, and such that others cannot impact you.
 
 Choose a database:
@@ -63,15 +72,6 @@ If this selection process is too cumbersome, you can also take advantage of the 
 - table - name of the table
 
 You can connect to it from a DBMS or you can set a local running API to use it as the database.
-
-### Prepare the Proxy
-
-In a different terminal, install dependencies and build the binary:
-```
-go mod download  # to install all dependencies
-
-go build  # creates binary
-```
 
 ### Running with Real Remote (When Ready)
 
