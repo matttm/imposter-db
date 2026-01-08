@@ -179,7 +179,7 @@ func Populate(db *sql.DB, dbName, createQuery string, inserts []string) {
 		// log.Println(ins)
 		_, err = db.Exec(ins)
 		if err != nil {
-			fmt.Println("Error while inserting spoofed data")
+			fmt.Printf("Error while inserting spoofed data: %s\n", err.Error())
 			// there wrete some inserts that errored because they had bad data in db,
 			// so it threw when afdded
 			//
