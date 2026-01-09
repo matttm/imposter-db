@@ -60,7 +60,7 @@ In a scenario, like this, I would replicate the `application_gates table`, this 
 Finally, the proxy is running! Now we want it to do some tom-foolery. We can connect to it using the credentials needed to access the remote.
 ```
 host -  127.0.0.1
-port - 3307
+port - 3308
 username - USER -- where USER is the user of the remote database
 password - PASS -- where PASS is the password of the above user in the remote database
 ```
