@@ -145,11 +145,11 @@ func main() {
 
 	// start proxying
 	// TODO: put in env vars
-	socket, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", 3308))
+	socket, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%s", proxyPort))
 	if err != nil {
 		log.Fatalf("failed to start proxy: %s", err.Error())
 	}
-	fmt.Printf("Listening on localhost:%d\n", 3307)
+	fmt.Printf("Listening on localhost:%s\n", proxyPort)
 	for {
 		originSocket, err := socket.Accept()
 		if err != nil {
