@@ -26,7 +26,7 @@ trap cleanup EXIT
 
 # Start docker-compose services
 echo "${YELLOW}📦 Starting Docker containers...${NC}"
-docker-compose up -d
+docker compose up -d
 
 # Wait for containers to be healthy
 echo "${YELLOW}⏳ Waiting for databases to be healthy...${NC}"
@@ -49,8 +49,8 @@ done
 
 if [ $elapsed -ge $max_wait ]; then
     echo "${RED}❌ Timeout waiting for databases to become healthy${NC}"
-    docker-compose ps
-    docker-compose logs
+    docker compose ps
+    docker compose logs
     exit 1
 fi
 
@@ -72,7 +72,7 @@ if [ $test_result -eq 0 ]; then
 else
     echo "${RED}❌ Integration tests failed${NC}"
     echo "${YELLOW}📋 Docker logs:${NC}"
-    docker-compose logs --tail=50
+    docker compose logs --tail=50
 fi
 
 exit $test_result
