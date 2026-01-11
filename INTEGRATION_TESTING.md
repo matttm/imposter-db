@@ -2,19 +2,20 @@
 
 ## Overview
 
-The integration test suite validates the full proxy functionality using the Docker containers defined in `docker-compose.yml`. The tests verify that:
+The integration test suite validates that the `main()` function correctly replicates a chosen table from the remote database to the local database using the Docker containers defined in `docker-compose.yml`. The tests verify that:
 
-1. The proxy correctly routes queries for spoofed tables to the local database
-2. Queries for non-spoofed tables are forwarded to the remote database
-3. Local modifications remain isolated from the remote database
-4. The proxy handles multiple simultaneous client connections
+1. The chosen table is successfully created in the local database
+2. Table schema (columns and types) matches the remote database
+3. All data is correctly copied from remote to local
+4. Row counts match between databases
+5. Local and remote databases remain independent after replication
 
 ## Test Architecture
 
 The integration test uses:
-- **Local Database** (`imposter-local`): MySQL on port 3306 - stores the spoofed table
-- **Remote Database** (`imposter-remote`): MySQL on port 3307 - contains the full test dataset
-- **Proxy Server**: Listens on port 13306 and routes queries between local and remote
+- **Local Database** (`imposter-local`): MySQL on port 3306 - target for table replication
+- **Remote Database** (`imposter-remote`): MySQL on port 3307 - source containing the test dataset
+- **Main Function**: Called with flags `-schema TEST_DB -table application_gates -fk=false`
 
 ## Running the Tests
 
@@ -58,34 +59,40 @@ docker-compose down -v
 
 ## Test Cases
 
-### TestIntegration_ProxyWithDockerContainers
+### TestIntegration_TableReplication
 
-The main integration test includes four sub-tests:
+The main integration test calls `main()` with appropriate flags and includes five sub-tests:
 
-#### 1. ProxyShowsTables
-Verifies that the proxy correctly exposes all tables from the remote database, including the spoofed table.
+#### 1. TableExistsInLocal
+Verifies that the specified table (`application_gates`) was successfully created in the local database after running `main()`.
 
-#### 2. SpoofedTableReadsFromLocal
-Tests that queries against the spoofed table (`application_gates`) are served from the local database:
-- Inserts a unique row into the local database
-- Queries through the proxy to verify the row is visible
-- Confirms the row does NOT exist in the remote database
+#### 2. RowCountMatches
+Confirms that the local table has the exact same number of rows as the remote table, ensuring complete data replication.
 
-#### 3. NonSpoofedTableReadsFromRemote
-Validates that queries for non-spoofed tables (e.g., `users`) are correctly routed to the remote database.
+#### 3. TableSchemaMatches
+Validates that the table structure is identical:
+- Same number of columns
+- Column names match
+- Column data types match
 
-#### 4. LocalModificationsAreIsolated
-Confirms that inserts/updates through the proxy only affect the local database:
-- Inserts data through the proxy
-- Verifies the remote database remains unchanged
-- Confirms the proxy sees the new data from local
+#### 4. DataCopiedCorrectly
+Verifies that actual data was copied correctly by:
+- Capturing all rows from both databases
+- Comparing the first 5 rows to ensure they match
+- Checking that row counts are identical
+
+#### 5. DatabasesAreIndependent
+Confirms that local and remote databases remain independent:
+- Inserts a test row into the local database
+- Verifies the row exists in local but NOT in remote
+- Ensures modifications to local don't affect remote
 
 ## Test Data
 
 The remote database is initialized with test data from `init.sql`, which creates:
 - `user_types`: Reference data for user types
 - `users`: User accounts
-- `application_gates`: Timeline/enrollment gates (this is the spoofed table)
+- `application_gates`: Timeline/enrollment gates (this is the replicated table)
 - `applications`: Links users to gates
 
 Each table contains 20 rows of sample data.
@@ -125,7 +132,7 @@ docker-compose ps
 
 ### Port Conflicts
 
-If ports 3306, 3307, or 13306 are already in use:
+If ports 3306 or 3307 are already in use:
 1. Stop conflicting services
 2. Or modify the ports in `docker-compose.yml` and update the test constants
 
@@ -134,7 +141,7 @@ If ports 3306, 3307, or 13306 are already in use:
 If tests timeout, it may indicate:
 - Databases are slow to initialize (increase `healthCheckRetries`)
 - Network connectivity issues
-- Proxy not starting correctly
+- `main()` taking longer than 10 seconds to replicate data
 
 Check logs with:
 ```bash
@@ -184,9 +191,9 @@ Or with explicit steps:
 
 To add new test cases:
 
-1. Add a new `t.Run()` block in `TestIntegration_ProxyWithDockerContainers`
-2. Use the existing database connections (`localDB`, `remoteDB`, `proxyDB`)
-3. Follow the pattern of verifying isolation between local and remote
+1. Add a new `t.Run()` block in `TestIntegration_TableReplication`
+2. Use the existing database connections (`localDB`, `remoteDB`)
+3. Follow the pattern of verifying table replication and database independence
 
 Example:
 ```go
@@ -201,7 +208,8 @@ t.Run("MyNewTestCase", func(t *testing.T) {
 
 The integration test suite typically takes:
 - **Container startup**: 15-30 seconds
-- **Test execution**: 5-10 seconds
+- **Table replication** (via main()): 10-15 seconds
+- **Test verification**: 2-5 seconds
 - **Cleanup**: 5 seconds
 
-Total time: ~30-45 seconds per run.
+Total time: ~35-55 seconds per run.

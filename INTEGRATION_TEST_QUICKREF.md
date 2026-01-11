@@ -14,10 +14,13 @@ Or directly:
 
 ## 📋 What Gets Tested
 
-✅ **Proxy exposes all tables** from remote database  
-✅ **Spoofed table queries** are served from local database  
-✅ **Non-spoofed tables** are forwarded to remote database  
-✅ **Local modifications** remain isolated from remote  
+The integration test calls the actual `main()` function with flags and verifies:
+
+✅ **Table replication** - Chosen table copied from remote to local  
+✅ **Schema correctness** - Table structure matches exactly  
+✅ **Data integrity** - All rows copied correctly  
+✅ **Row count matches** - Same number of rows in both databases  
+✅ **Database isolation** - Local and remote databases are independent  
 
 ## 🔧 Test Infrastructure
 
@@ -78,12 +81,13 @@ If tests fail, check:
 
 ```
 integration_test.go
-├── TestIntegration_ProxyWithDockerContainers
-    ├── Setup (databases + proxy)
-    ├── ProxyShowsTables
-    ├── SpoofedTableReadsFromLocal
-    ├── NonSpoofedTableReadsFromRemote
-    └── LocalModificationsAreIsolated
+├── TestIntegration_TableReplication
+    ├── Setup (databases + main() with flags)
+    ├── TableExistsInLocal
+    ├── RowCountMatches
+    ├── TableSchemaMatches
+    ├── DataCopiedCorrectly
+    └── DatabasesAreIndependent
 ```
 
 ## ⚙️ Environment Variables

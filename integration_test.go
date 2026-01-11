@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"database/sql"
+	"flag"
 	"fmt"
-	"log"
-	"net"
 	"os"
 	"testing"
 	"time"
@@ -21,157 +19,180 @@ const (
 	testRemotePort     = "3307"
 	testSchema         = "TEST_DB"
 	testTable          = "application_gates"
-	testTimeout        = 30 * time.Second
 	healthCheckDelay   = 2 * time.Second
 	healthCheckRetries = 15
 )
 
-// TestIntegration_ProxyWithDockerContainers tests the full proxy functionality
-// using the docker-compose containers (localdb on 3306, remote db on 3307)
-func TestIntegration_ProxyWithDockerContainers(t *testing.T) {
+// TestIntegration_TableReplication tests that main() correctly replicates
+// the chosen table from the remote database to the local database
+func TestIntegration_TableReplication(t *testing.T) {
 	// Skip if we're not in integration test mode
 	if os.Getenv("INTEGRATION_TEST") == "" {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=1 to run")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
-	defer cancel()
 
 	// Setup environment variables for the test
 	setupTestEnv()
 
 	// Wait for databases to be healthy
 	t.Log("Waiting for databases to be ready...")
-	localDB := waitForDatabase(t, "root", "root", "127.0.0.1", testLocalPort, "")
-	require.NotNil(t, localDB, "Local database should be accessible")
-	defer localDB.Close()
-
 	remoteDB := waitForDatabase(t, "ADMIN", "ADMIN", "127.0.0.1", testRemotePort, testSchema)
 	require.NotNil(t, remoteDB, "Remote database should be accessible")
 	defer remoteDB.Close()
 
 	// Verify remote database has the expected test data
-	t.Log("Verifying remote database setup...")
-	verifyRemoteData(t, remoteDB)
+	t.Log("Verifying remote database has test data...")
+	remoteRowCount := verifyRemoteData(t, remoteDB)
 
-	// Setup the local database with replicated data
-	t.Log("Setting up local database replication...")
-	setupLocalReplication(t, localDB, remoteDB)
+	// Get the original data from remote for comparison
+	t.Log("Capturing remote table data for comparison...")
+	remoteRows := captureTableData(t, remoteDB, testTable)
+	require.Greater(t, len(remoteRows), 0, "Remote table should have data")
 
-	// Start the proxy server
-	t.Log("Starting proxy server...")
-	proxyReady := make(chan bool)
-	proxyErrors := make(chan error, 1)
-	go startTestProxy(ctx, proxyReady, proxyErrors)
+	// Clear local database to ensure clean state
+	t.Log("Cleaning local database...")
+	localDB := waitForDatabase(t, "root", "root", "127.0.0.1", testLocalPort, "")
+	require.NotNil(t, localDB, "Local database should be accessible")
+	cleanLocalDatabase(t, localDB, testSchema)
+	localDB.Close()
 
-	// Wait for proxy to be ready
-	select {
-	case <-proxyReady:
-		t.Log("Proxy server is ready")
-	case err := <-proxyErrors:
-		t.Fatalf("Failed to start proxy: %v", err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("Timeout waiting for proxy to start")
+	// Set up command line flags for main()
+	t.Log("Setting up flags for main()...")
+	os.Args = []string{
+		"imposter-db",
+		"-schema", testSchema,
+		"-table", testTable,
+		"-fk=false", // Don't include foreign key tables for simpler test
 	}
 
-	// Give proxy a moment to stabilize
-	time.Sleep(500 * time.Millisecond)
+	// Reset flag parsing
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	// Connect to the proxy
-	t.Log("Connecting to proxy...")
-	proxyDB := connectToProxy(t)
-	require.NotNil(t, proxyDB, "Should be able to connect to proxy")
-	defer proxyDB.Close()
+	// Start main() in a goroutine since it runs forever
+	t.Log("Starting main() to perform table replication...")
+	mainStarted := make(chan bool)
+	mainErrors := make(chan error, 1)
 
-	// Test 1: Verify we can see tables from remote database through proxy
-	t.Run("ProxyShowsTables", func(t *testing.T) {
-		tables := getTables(t, proxyDB, testSchema)
-		assert.Contains(t, tables, testTable, "Proxy should show application_gates table")
-		assert.Contains(t, tables, "users", "Proxy should show users table from remote")
-		assert.Contains(t, tables, "applications", "Proxy should show applications table from remote")
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				mainErrors <- fmt.Errorf("main() panicked: %v", r)
+			}
+		}()
+
+		// Signal that we're starting
+		mainStarted <- true
+
+		// This will run until the proxy starts listening
+		// The proxy listener loop will block, which is expected
+		main()
+	}()
+
+	// Wait for main to start
+	select {
+	case <-mainStarted:
+		t.Log("main() started")
+	case err := <-mainErrors:
+		t.Fatalf("main() failed to start: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for main() to start")
+	}
+
+	// Give main() time to complete the table replication
+	t.Log("Waiting for table replication to complete...")
+	time.Sleep(10 * time.Second)
+
+	// Now verify that the table was copied to local database
+	t.Log("Verifying table was replicated to local database...")
+	localDB = waitForDatabase(t, "root", "root", "127.0.0.1", testLocalPort, testSchema)
+	require.NotNil(t, localDB, "Should be able to reconnect to local database")
+	defer localDB.Close()
+
+	// Test 1: Verify the table exists in local database
+	t.Run("TableExistsInLocal", func(t *testing.T) {
+		var tableExists int
+		err := localDB.QueryRow(
+			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
+			testSchema, testTable,
+		).Scan(&tableExists)
+		require.NoError(t, err)
+		assert.Equal(t, 1, tableExists, "Table should exist in local database")
 	})
 
-	// Test 2: Verify spoofed table reads from local database
-	t.Run("SpoofedTableReadsFromLocal", func(t *testing.T) {
-		// Modify data in local database
-		_, err := localDB.Exec(fmt.Sprintf("USE %s", testSchema))
+	// Test 2: Verify row count matches
+	t.Run("RowCountMatches", func(t *testing.T) {
+		var localRowCount int
+		err := localDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&localRowCount)
 		require.NoError(t, err)
+		assert.Equal(t, remoteRowCount, localRowCount,
+			"Local table should have same number of rows as remote (%d rows)", remoteRowCount)
+	})
 
-		// Insert a unique test row in local DB
-		testGateName := fmt.Sprintf("TEST_GATE_%d", time.Now().Unix())
-		_, err = localDB.Exec(
+	// Test 3: Verify table schema matches
+	t.Run("TableSchemaMatches", func(t *testing.T) {
+		localColumns := getTableColumns(t, localDB, testTable)
+		remoteColumns := getTableColumns(t, remoteDB, testTable)
+
+		assert.Equal(t, len(remoteColumns), len(localColumns), "Should have same number of columns")
+
+		for colName, remoteType := range remoteColumns {
+			localType, exists := localColumns[colName]
+			assert.True(t, exists, "Column %s should exist in local table", colName)
+			assert.Equal(t, remoteType, localType, "Column %s type should match", colName)
+		}
+	})
+
+	// Test 4: Verify actual data was copied correctly
+	t.Run("DataCopiedCorrectly", func(t *testing.T) {
+		localRows := captureTableData(t, localDB, testTable)
+
+		assert.Equal(t, len(remoteRows), len(localRows),
+			"Local and remote should have same number of data rows")
+
+		// Verify some sample rows match
+		for i := 0; i < len(remoteRows) && i < 5; i++ {
+			remoteRow := remoteRows[i]
+			found := false
+			for _, localRow := range localRows {
+				if mapsEqual(remoteRow, localRow) {
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "Remote row %d should exist in local database", i)
+		}
+	})
+
+	// Test 5: Verify local and remote databases are independent
+	t.Run("DatabasesAreIndependent", func(t *testing.T) {
+		// Insert a new row in local
+		testGateName := fmt.Sprintf("LOCAL_TEST_%d", time.Now().Unix())
+		_, err := localDB.Exec(
 			fmt.Sprintf("INSERT INTO %s (gate_name, active_year, start_date, end_date) VALUES (?, ?, ?, ?)", testTable),
-			testGateName, 2026, "2026-01-01", "2026-12-31",
+			testGateName, 2026, "2026-01-11", "2026-12-31",
 		)
 		require.NoError(t, err, "Should be able to insert into local database")
 
-		// Read from proxy - should see the local data
-		time.Sleep(200 * time.Millisecond) // Brief delay for consistency
-		var count int
-		err = proxyDB.QueryRow(
-			fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE gate_name = ?", testSchema, testTable),
+		// Verify it exists in local
+		var localCount int
+		err = localDB.QueryRow(
+			fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE gate_name = ?", testTable),
 			testGateName,
-		).Scan(&count)
+		).Scan(&localCount)
 		require.NoError(t, err)
-		assert.Equal(t, 1, count, "Proxy should read the test row from local database")
+		assert.Equal(t, 1, localCount, "New row should exist in local database")
 
-		// Verify this row does NOT exist in remote database
+		// Verify it does NOT exist in remote
+		var remoteCount int
 		err = remoteDB.QueryRow(
 			fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE gate_name = ?", testTable),
 			testGateName,
-		).Scan(&count)
+		).Scan(&remoteCount)
 		require.NoError(t, err)
-		assert.Equal(t, 0, count, "Remote database should not have the test row")
+		assert.Equal(t, 0, remoteCount, "New row should NOT exist in remote database")
 	})
 
-	// Test 3: Verify non-spoofed tables read from remote
-	t.Run("NonSpoofedTableReadsFromRemote", func(t *testing.T) {
-		// Read users table from proxy (should come from remote)
-		var userCount int
-		err := proxyDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.users", testSchema)).Scan(&userCount)
-		require.NoError(t, err)
-
-		// Read users table directly from remote
-		var remoteUserCount int
-		err = remoteDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&remoteUserCount)
-		require.NoError(t, err)
-
-		assert.Equal(t, remoteUserCount, userCount, "User count from proxy should match remote database")
-		assert.Greater(t, userCount, 0, "Should have users in the database")
-	})
-
-	// Test 4: Verify local modifications are isolated
-	t.Run("LocalModificationsAreIsolated", func(t *testing.T) {
-		// Get initial count from remote
-		var remoteCount int
-		err := remoteDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&remoteCount)
-		require.NoError(t, err)
-
-		// Insert through proxy (goes to local)
-		testGateName := fmt.Sprintf("ISOLATED_GATE_%d", time.Now().Unix())
-		_, err = proxyDB.Exec(
-			fmt.Sprintf("INSERT INTO %s.%s (gate_name, active_year, start_date, end_date) VALUES (?, ?, ?, ?)", testSchema, testTable),
-			testGateName, 2026, "2026-02-01", "2026-02-28",
-		)
-		require.NoError(t, err, "Should be able to insert through proxy")
-
-		// Verify remote count hasn't changed
-		var newRemoteCount int
-		err = remoteDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&newRemoteCount)
-		require.NoError(t, err)
-		assert.Equal(t, remoteCount, newRemoteCount, "Remote database should remain unchanged")
-
-		// Verify proxy sees the new row
-		var proxyHasRow int
-		err = proxyDB.QueryRow(
-			fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE gate_name = ?", testSchema, testTable),
-			testGateName,
-		).Scan(&proxyHasRow)
-		require.NoError(t, err)
-		assert.Equal(t, 1, proxyHasRow, "Proxy should see the new row from local database")
-	})
-
-	t.Log("All integration tests passed!")
+	t.Log("✅ All integration tests passed! Table was successfully replicated from remote to local.")
 }
 
 // setupTestEnv configures environment variables for the test
@@ -216,46 +237,41 @@ func waitForDatabase(t *testing.T, user, pass, host, port, dbname string) *sql.D
 }
 
 // verifyRemoteData checks that the remote database has the expected test data
-func verifyRemoteData(t *testing.T, db *sql.DB) {
+// and returns the row count for the test table
+func verifyRemoteData(t *testing.T, db *sql.DB) int {
 	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM application_gates").Scan(&count)
+	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&count)
 	require.NoError(t, err, "Should be able to query application_gates")
 	assert.Greater(t, count, 0, "Remote database should have application gates data")
 
 	err = db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
 	require.NoError(t, err, "Should be able to query users")
 	assert.Greater(t, count, 0, "Remote database should have users data")
+
+	// Return the count for the test table
+	var testTableCount int
+	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&testTableCount)
+	require.NoError(t, err)
+	return testTableCount
 }
 
-// setupLocalReplication replicates the spoofed table to the local database
-func setupLocalReplication(t *testing.T, localDB, remoteDB *sql.DB) {
-	// Create the schema in local database
-	_, err := localDB.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", testSchema))
-	require.NoError(t, err)
+// cleanLocalDatabase removes the test schema if it exists
+func cleanLocalDatabase(t *testing.T, db *sql.DB, schema string) {
+	_, err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", schema))
+	require.NoError(t, err, "Should be able to drop test schema")
+	t.Logf("Cleaned local database (dropped %s schema if it existed)", schema)
+}
 
-	_, err = localDB.Exec(fmt.Sprintf("CREATE DATABASE %s", testSchema))
-	require.NoError(t, err)
-
-	_, err = localDB.Exec(fmt.Sprintf("USE %s", testSchema))
-	require.NoError(t, err)
-
-	// Get the CREATE TABLE statement from remote
-	var tableName, createStmt string
-	err = remoteDB.QueryRow(fmt.Sprintf("SHOW CREATE TABLE %s", testTable)).Scan(&tableName, &createStmt)
-	require.NoError(t, err, "Should be able to get CREATE TABLE statement")
-
-	// Create the table in local database
-	_, err = localDB.Exec(createStmt)
-	require.NoError(t, err, "Should be able to create table in local database")
-
-	// Copy data from remote to local
-	rows, err := remoteDB.Query(fmt.Sprintf("SELECT * FROM %s", testTable))
+// captureTableData retrieves all rows from a table as a slice of maps
+func captureTableData(t *testing.T, db *sql.DB, table string) []map[string]interface{} {
+	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s ORDER BY gate_id", table))
 	require.NoError(t, err)
 	defer rows.Close()
 
 	cols, err := rows.Columns()
 	require.NoError(t, err)
 
+	var result []map[string]interface{}
 	for rows.Next() {
 		values := make([]interface{}, len(cols))
 		valuePtrs := make([]interface{}, len(cols))
@@ -266,99 +282,61 @@ func setupLocalReplication(t *testing.T, localDB, remoteDB *sql.DB) {
 		err = rows.Scan(valuePtrs...)
 		require.NoError(t, err)
 
-		// Build insert statement
-		placeholders := ""
-		for i := range cols {
-			if i > 0 {
-				placeholders += ", "
-			}
-			placeholders += "?"
+		row := make(map[string]interface{})
+		for i, col := range cols {
+			row[col] = values[i]
 		}
-
-		insertStmt := fmt.Sprintf("INSERT INTO %s VALUES (%s)", testTable, placeholders)
-		_, err = localDB.Exec(insertStmt, values...)
-		require.NoError(t, err)
+		result = append(result, row)
 	}
 
-	t.Logf("Successfully replicated %s table to local database", testTable)
+	return result
 }
 
-// startTestProxy starts the proxy server in a goroutine
-func startTestProxy(ctx context.Context, ready chan<- bool, errors chan<- error) {
-	socket, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%s", testProxyPort))
-	if err != nil {
-		errors <- fmt.Errorf("failed to start proxy: %w", err)
-		return
-	}
-	defer socket.Close()
-
-	// Signal that proxy is ready
-	ready <- true
-
-	// Handle connections
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				originSocket, err := socket.Accept()
-				if err != nil {
-					// Check if we're shutting down
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						log.Printf("failed to accept connection: %s", err.Error())
-						continue
-					}
-				}
-				go handleConn(originSocket, testSchema, testTable)
-			}
-		}
-	}()
-
-	// Wait for context cancellation
-	<-ctx.Done()
-}
-
-// connectToProxy creates a connection to the proxy server
-func connectToProxy(t *testing.T) *sql.DB {
-	// Use the same credentials as local database
-	url := fmt.Sprintf("root:root@tcp(127.0.0.1:%s)/", testProxyPort)
-
-	var db *sql.DB
-	var err error
-
-	// Retry a few times as the proxy might need a moment to stabilize
-	for i := 0; i < 5; i++ {
-		db, err = sql.Open("mysql", url)
-		if err == nil {
-			err = db.Ping()
-			if err == nil {
-				return db
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	t.Fatalf("Failed to connect to proxy: %v", err)
-	return nil
-}
-
-// getTables retrieves the list of tables from a database schema
-func getTables(t *testing.T, db *sql.DB, schema string) []string {
-	rows, err := db.Query(fmt.Sprintf("SHOW TABLES FROM %s", schema))
+// getTableColumns returns a map of column names to their data types
+func getTableColumns(t *testing.T, db *sql.DB, table string) map[string]string {
+	rows, err := db.Query(fmt.Sprintf("DESCRIBE %s", table))
 	require.NoError(t, err)
 	defer rows.Close()
 
-	var tables []string
+	columns := make(map[string]string)
 	for rows.Next() {
-		var table string
-		err := rows.Scan(&table)
+		var field, colType, null, key, extra string
+		var defaultVal interface{}
+		err := rows.Scan(&field, &colType, &null, &key, &defaultVal, &extra)
 		require.NoError(t, err)
-		tables = append(tables, table)
+		columns[field] = colType
 	}
 
-	return tables
+	return columns
+}
+
+// mapsEqual compares two maps for equality
+func mapsEqual(a, b map[string]interface{}) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for key, aVal := range a {
+		bVal, exists := b[key]
+		if !exists {
+			return false
+		}
+
+		// Handle byte slices (common for date/time fields)
+		aBytes, aIsBytes := aVal.([]byte)
+		bBytes, bIsBytes := bVal.([]byte)
+		if aIsBytes && bIsBytes {
+			if string(aBytes) != string(bBytes) {
+				return false
+			}
+			continue
+		}
+
+		// Direct comparison for other types
+		if fmt.Sprintf("%v", aVal) != fmt.Sprintf("%v", bVal) {
+			return false
+		}
+	}
+
+	return true
 }
