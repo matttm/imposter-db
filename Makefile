@@ -25,16 +25,16 @@ integration-test-keep: docker-up ## Run integration tests but keep containers ru
 	INTEGRATION_TEST=1 go test -v -run TestIntegration -timeout 2m
 
 docker-up: ## Start Docker containers
-	docker-compose up -d
+	docker compose up -d
 
 docker-down: ## Stop and remove Docker containers
-	docker-compose down -v
+	docker compose down -v
 
 docker-logs: ## Show Docker container logs
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-status: ## Show status of Docker containers
-	docker-compose ps
+	docker compose ps
 
 clean: docker-down ## Clean up everything (containers, volumes, binaries)
 	rm -f imposter-db
