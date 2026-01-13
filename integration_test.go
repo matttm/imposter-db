@@ -23,6 +23,28 @@ const (
 	healthCheckRetries = 15
 )
 
+// init sets up environment variables before package-level vars in database.go are initialized
+func init() {
+	// Only set up env vars if we're running integration tests
+	if os.Getenv("INTEGRATION_TEST") != "" {
+		fmt.Println("[INIT] Setting up environment variables for integration test...")
+		os.Setenv("REMOTE_DB_PORT", testRemotePort)
+		os.Setenv("REMOTE_DB_HOST", "127.0.0.1")
+		os.Setenv("REMOTE_DB_USER", "ADMIN")
+		os.Setenv("REMOTE_DB_PASS", "ADMIN")
+		os.Setenv("REMOTE_DB_NAME", testSchema)
+
+		os.Setenv("PROXY_PORT", testProxyPort)
+
+		os.Setenv("LOCAL_DB_PORT", testLocalPort)
+		os.Setenv("LOCAL_DB_HOST", "127.0.0.1")
+		os.Setenv("LOCAL_DB_USER", "root")
+		os.Setenv("LOCAL_DB_PASS", "root")
+		os.Setenv("LOCAL_DB_NAME", "")
+		fmt.Println("[INIT] Environment variables configured")
+	}
+}
+
 // TestIntegration_TableReplication tests that main() correctly replicates
 // the chosen table from the remote database to the local database
 func TestIntegration_TableReplication(t *testing.T) {
@@ -31,8 +53,11 @@ func TestIntegration_TableReplication(t *testing.T) {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=1 to run")
 	}
 
-	// Setup environment variables for the test
-	setupTestEnv()
+	// Environment variables are set in init() function above
+	fmt.Println("[TEST] Starting integration test...")
+	fmt.Printf("[TEST] Remote: %s@%s:%s/%s\n", "ADMIN", "127.0.0.1", testRemotePort, testSchema)
+	fmt.Printf("[TEST] Local: %s@%s:%s\n", "root", "127.0.0.1", testLocalPort)
+	fmt.Printf("[TEST] Proxy: %s\n", testProxyPort)
 
 	// Wait for databases to be healthy
 	t.Log("Waiting for databases to be ready...")
@@ -58,34 +83,39 @@ func TestIntegration_TableReplication(t *testing.T) {
 
 	// Set up command line flags for main()
 	t.Log("Setting up flags for main()...")
+	fmt.Println("[MAIN] Configuring command line arguments...")
 	os.Args = []string{
 		"imposter-db",
 		"-schema", testSchema,
 		"-table", testTable,
 		"-fk=false", // Don't include foreign key tables for simpler test
 	}
-
-	// Reset flag parsing
+	fmt.Printf("[MAIN] Args: %v\n", os.Args)
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	// Start main() in a goroutine since it runs forever
 	t.Log("Starting main() to perform table replication...")
+	fmt.Println("[MAIN] Launching main() in goroutine...")
 	mainStarted := make(chan bool)
 	mainErrors := make(chan error, 1)
 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				fmt.Printf("[MAIN] ✗ PANIC: %v\n", r)
 				mainErrors <- fmt.Errorf("main() panicked: %v", r)
 			}
 		}()
 
 		// Signal that we're starting
+		fmt.Println("[MAIN] Signaling main() start...")
 		mainStarted <- true
 
 		// This will run until the proxy starts listening
 		// The proxy listener loop will block, which is expected
+		fmt.Println("[MAIN] Calling main()...")
 		main()
+		fmt.Println("[MAIN] main() returned (unexpected)")
 	}()
 
 	// Wait for main to start
@@ -100,10 +130,15 @@ func TestIntegration_TableReplication(t *testing.T) {
 
 	// Give main() time to complete the table replication
 	t.Log("Waiting for table replication to complete...")
-	time.Sleep(10 * time.Second)
+	fmt.Println("[WAIT] Sleeping 10 seconds for main() to replicate table...")
+	for i := 1; i <= 10; i++ {
+		time.Sleep(1 * time.Second)
+		fmt.Printf("[WAIT] %d/10 seconds elapsed...\n", i)
+	}
 
 	// Now verify that the table was copied to local database
 	t.Log("Verifying table was replicated to local database...")
+	fmt.Println("[VERIFY] Reconnecting to local database to check replication...")
 	localDB = waitForDatabase(t, "root", "root", "127.0.0.1", testLocalPort, testSchema)
 	require.NotNil(t, localDB, "Should be able to reconnect to local database")
 	defer localDB.Close()
@@ -195,43 +230,34 @@ func TestIntegration_TableReplication(t *testing.T) {
 	t.Log("✅ All integration tests passed! Table was successfully replicated from remote to local.")
 }
 
-// setupTestEnv configures environment variables for the test
-func setupTestEnv() {
-	os.Setenv("REMOTE_DB_PORT", testRemotePort)
-	os.Setenv("REMOTE_DB_HOST", "127.0.0.1")
-	os.Setenv("REMOTE_DB_USER", "ADMIN")
-	os.Setenv("REMOTE_DB_PASS", "ADMIN")
-	os.Setenv("REMOTE_DB_NAME", testSchema)
-
-	os.Setenv("PROXY_PORT", testProxyPort)
-
-	os.Setenv("LOCAL_DB_PORT", testLocalPort)
-	os.Setenv("LOCAL_DB_HOST", "127.0.0.1")
-	os.Setenv("LOCAL_DB_USER", "root")
-	os.Setenv("LOCAL_DB_PASS", "root")
-	os.Setenv("LOCAL_DB_NAME", "")
-}
-
 // waitForDatabase waits for a database to be ready and returns a connection
 func waitForDatabase(t *testing.T, user, pass, host, port, dbname string) *sql.DB {
 	var db *sql.DB
 	var err error
+	dbLabel := "local"
+	if port == testRemotePort {
+		dbLabel = "remote"
+	}
 
+	fmt.Printf("[DB CONNECT] Attempting to connect to %s database at %s:%s/%s...\n", dbLabel, host, port, dbname)
 	for i := 0; i < healthCheckRetries; i++ {
 		url := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, pass, host, port, dbname)
 		db, err = sql.Open("mysql", url)
 		if err == nil {
 			err = db.Ping()
 			if err == nil {
+				fmt.Printf("[DB CONNECT] ✓ Connected to %s database\n", dbLabel)
 				return db
 			}
 		}
 
 		if i < healthCheckRetries-1 {
+			fmt.Printf("[DB CONNECT] Retry %d/%d for %s: %v\n", i+1, healthCheckRetries, dbLabel, err)
 			time.Sleep(healthCheckDelay)
 		}
 	}
 
+	fmt.Printf("[DB CONNECT] ✗ Failed to connect to %s database after %d retries\n", dbLabel, healthCheckRetries)
 	t.Fatalf("Failed to connect to database after %d retries: %v", healthCheckRetries, err)
 	return nil
 }
@@ -239,14 +265,17 @@ func waitForDatabase(t *testing.T, user, pass, host, port, dbname string) *sql.D
 // verifyRemoteData checks that the remote database has the expected test data
 // and returns the row count for the test table
 func verifyRemoteData(t *testing.T, db *sql.DB) int {
+	fmt.Println("[VERIFY] Checking remote database has test data...")
 	var count int
 	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&count)
 	require.NoError(t, err, "Should be able to query application_gates")
 	assert.Greater(t, count, 0, "Remote database should have application gates data")
+	fmt.Printf("[VERIFY] ✓ Remote has %d rows in %s\n", count, testTable)
 
 	err = db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
 	require.NoError(t, err, "Should be able to query users")
 	assert.Greater(t, count, 0, "Remote database should have users data")
+	fmt.Printf("[VERIFY] ✓ Remote has %d rows in users\n", count)
 
 	// Return the count for the test table
 	var testTableCount int
@@ -264,12 +293,14 @@ func cleanLocalDatabase(t *testing.T, db *sql.DB, schema string) {
 
 // captureTableData retrieves all rows from a table as a slice of maps
 func captureTableData(t *testing.T, db *sql.DB, table string) []map[string]interface{} {
+	fmt.Printf("[CAPTURE] Reading all rows from %s...\n", table)
 	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s ORDER BY gate_id", table))
 	require.NoError(t, err)
 	defer rows.Close()
 
 	cols, err := rows.Columns()
 	require.NoError(t, err)
+	fmt.Printf("[CAPTURE] Table has %d columns: %v\n", len(cols), cols)
 
 	var result []map[string]interface{}
 	for rows.Next() {
@@ -289,6 +320,7 @@ func captureTableData(t *testing.T, db *sql.DB, table string) []map[string]inter
 		result = append(result, row)
 	}
 
+	fmt.Printf("[CAPTURE] ✓ Captured %d rows\n", len(result))
 	return result
 }
 

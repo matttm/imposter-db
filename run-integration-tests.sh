@@ -61,6 +61,19 @@ echo ""
 echo "${YELLOW}🧪 Running integration tests...${NC}"
 echo ""
 
+# Set environment variables for the test
+export REMOTE_DB_PORT=3307
+export REMOTE_DB_HOST=127.0.0.1
+export REMOTE_DB_USER=ADMIN
+export REMOTE_DB_PASS=ADMIN
+export REMOTE_DB_NAME=TEST_DB
+export PROXY_PORT=13306
+export LOCAL_DB_PORT=3306
+export LOCAL_DB_HOST=127.0.0.1
+export LOCAL_DB_USER=root
+export LOCAL_DB_PASS=root
+export LOCAL_DB_NAME=""
+
 # Run the integration tests
 INTEGRATION_TEST=1 go test -v -run TestIntegration -timeout 2m
 
