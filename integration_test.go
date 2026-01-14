@@ -157,7 +157,7 @@ func TestIntegration_TableReplication(t *testing.T) {
 	// Test 2: Verify row count matches
 	t.Run("RowCountMatches", func(t *testing.T) {
 		var localRowCount int
-		err := localDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&localRowCount)
+		err := localDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", testSchema, testTable)).Scan(&localRowCount)
 		require.NoError(t, err)
 		assert.Equal(t, remoteRowCount, localRowCount,
 			"Local table should have same number of rows as remote (%d rows)", remoteRowCount)
@@ -203,7 +203,7 @@ func TestIntegration_TableReplication(t *testing.T) {
 		// Insert a new row in local
 		testGateName := fmt.Sprintf("LOCAL_TEST_%d", time.Now().Unix())
 		_, err := localDB.Exec(
-			fmt.Sprintf("INSERT INTO %s (gate_name, active_year, start_date, end_date) VALUES (?, ?, ?, ?)", testTable),
+			fmt.Sprintf("INSERT INTO %s.%s (gate_name, active_year, start_date, end_date) VALUES (?, ?, ?, ?)", testSchema, testTable),
 			testGateName, 2026, "2026-01-11", "2026-12-31",
 		)
 		require.NoError(t, err, "Should be able to insert into local database")
@@ -211,7 +211,7 @@ func TestIntegration_TableReplication(t *testing.T) {
 		// Verify it exists in local
 		var localCount int
 		err = localDB.QueryRow(
-			fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE gate_name = ?", testTable),
+			fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE gate_name = ?", testSchema, testTable),
 			testGateName,
 		).Scan(&localCount)
 		require.NoError(t, err)
@@ -220,7 +220,7 @@ func TestIntegration_TableReplication(t *testing.T) {
 		// Verify it does NOT exist in remote
 		var remoteCount int
 		err = remoteDB.QueryRow(
-			fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE gate_name = ?", testTable),
+			fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE gate_name = ?", testSchema, testTable),
 			testGateName,
 		).Scan(&remoteCount)
 		require.NoError(t, err)
@@ -267,7 +267,7 @@ func waitForDatabase(t *testing.T, user, pass, host, port, dbname string) *sql.D
 func verifyRemoteData(t *testing.T, db *sql.DB) int {
 	fmt.Println("[VERIFY] Checking remote database has test data...")
 	var count int
-	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&count)
+	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", testSchema, testTable)).Scan(&count)
 	require.NoError(t, err, "Should be able to query application_gates")
 	assert.Greater(t, count, 0, "Remote database should have application gates data")
 	fmt.Printf("[VERIFY] ✓ Remote has %d rows in %s\n", count, testTable)
@@ -279,7 +279,7 @@ func verifyRemoteData(t *testing.T, db *sql.DB) int {
 
 	// Return the count for the test table
 	var testTableCount int
-	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", testTable)).Scan(&testTableCount)
+	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", testSchema, testTable)).Scan(&testTableCount)
 	require.NoError(t, err)
 	return testTableCount
 }
@@ -294,7 +294,7 @@ func cleanLocalDatabase(t *testing.T, db *sql.DB, schema string) {
 // captureTableData retrieves all rows from a table as a slice of maps
 func captureTableData(t *testing.T, db *sql.DB, table string) []map[string]interface{} {
 	fmt.Printf("[CAPTURE] Reading all rows from %s...\n", table)
-	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s ORDER BY gate_id", table))
+	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s.%s ORDER BY gate_id", testSchema, table))
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -326,7 +326,7 @@ func captureTableData(t *testing.T, db *sql.DB, table string) []map[string]inter
 
 // getTableColumns returns a map of column names to their data types
 func getTableColumns(t *testing.T, db *sql.DB, table string) map[string]string {
-	rows, err := db.Query(fmt.Sprintf("DESCRIBE %s", table))
+	rows, err := db.Query(fmt.Sprintf("DESCRIBE %s.%s", testSchema, table))
 	require.NoError(t, err)
 	defer rows.Close()
 
