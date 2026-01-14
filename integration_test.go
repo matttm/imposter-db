@@ -139,7 +139,7 @@ func TestIntegration_TableReplication(t *testing.T) {
 	// Now verify that the table was copied to local database
 	t.Log("Verifying table was replicated to local database...")
 	fmt.Println("[VERIFY] Reconnecting to local database to check replication...")
-	localDB = waitForDatabase(t, "root", "root", "127.0.0.1", testLocalPort, testSchema)
+	localDB = waitForDatabase(t, "root", "root", "127.0.0.1", testLocalPort, "")
 	require.NotNil(t, localDB, "Should be able to reconnect to local database")
 	defer localDB.Close()
 
