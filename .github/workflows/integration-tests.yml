@@ -61,6 +61,17 @@ jobs:
     - name: Run integration tests
       env:
         INTEGRATION_TEST: 1
+        REMOTE_DB_PORT: 3307
+        REMOTE_DB_HOST: 127.0.0.1
+        REMOTE_DB_USER: ADMIN
+        REMOTE_DB_PASS: ADMIN
+        REMOTE_DB_NAME: TEST_DB
+        PROXY_PORT: 13306
+        LOCAL_DB_PORT: 3306
+        LOCAL_DB_HOST: 127.0.0.1
+        LOCAL_DB_USER: root
+        LOCAL_DB_PASS: root
+        LOCAL_DB_NAME: ""
       run: go test -v -run TestIntegration -timeout 2m
 
     - name: Show logs on failure
