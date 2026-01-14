@@ -15,6 +15,9 @@ var (
 	remoteUser   = os.Getenv("REMOTE_DB_USER")
 	remotePass   = os.Getenv("REMOTE_DB_PASS")
 	remoteDbName = os.Getenv("REMOTE_DB_NAME")
+
+	proxyPort    = os.Getenv("PROXY_PORT")
+
 	localPort    = os.Getenv("LOCAL_DB_PORT")
 	localHost    = os.Getenv("LOCAL_DB_HOST")
 	localUser    = os.Getenv("LOCAL_DB_USER")
