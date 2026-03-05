@@ -1,0 +1,2 @@
+[mysqld]
+default_authentication_plugin=caching_sha2_password

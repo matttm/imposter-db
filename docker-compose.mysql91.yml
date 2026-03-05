@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  localdb:
+    image: mysql:9.1.0
+    container_name: imposter-local-mysql91
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql91.cnf:/etc/mysql/conf.d/my.cnf
+      - localdb91-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+      timeout: 5s
+
+  db:
+    image: mysql:9.1.0
+    container_name: imposter-remote-mysql91
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: TEST_DB
+      MYSQL_USER: ADMIN
+      MYSQL_PASSWORD: ADMIN
+    ports:
+      - "3307:3306"
+    volumes:
+      - db91-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+      timeout: 5s
+
+volumes:
+  localdb91-data:
+  db91-data:

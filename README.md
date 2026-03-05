@@ -26,6 +26,11 @@ If you want to try out the proxy with a dummy remote database first, start the D
 ```
 docker compose up
 ```
+Optional: use docker compose for a specific MySQL version:
+```
+docker compose -f docker-compose.mysql8.yml up -d
+docker compose -f docker-compose.mysql91.yml up -d
+```
 
 This sets up two local MySQL instances (one acting as "remote" and one as "local") that you can use to familiarize yourself with the proxy functionality without connecting to a real remote database.
 

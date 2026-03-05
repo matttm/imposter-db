@@ -21,7 +21,11 @@
 - **Dockerfile** - Docker image definition for the local (spoofed) database container
 - **Dockerfile.sha2** - Alternative Dockerfile (possibly for different auth methods)
 - **docker-compose.yml** - Defines two MySQL containers: localdb (port 3306) and remote db (port 3307)
+- **docker-compose.mysql8.yml** - Docker compose file for a MySQL 8 local test container
+- **docker-compose.mysql91.yml** - Docker compose file for a MySQL 9.1 local test container
 - **my.cnf** - MySQL configuration file mounted into local database container
+- **mysql8.cnf** - MySQL 8 config (mysql_native_password auth)
+- **mysql91.cnf** - MySQL 9.1 config (caching_sha2_password auth)
 - **init.sql** - Database initialization script. Creates test schema with users, application_gates, applications, and user_types tables
 
 ### Documentation
@@ -91,12 +95,13 @@ imposter-db/
 ├── Core Application (main.go, database.go, query.go, view.go, graph.go)
 ├── SQL Generation (sql-manipulator.go)
 ├── Testing (integration_test.go, *_test.go, test scripts)
-├── Docker Setup (Dockerfile, docker-compose.yml, init.sql, my.cnf)
+├── Docker Setup (Dockerfile, Dockerfile.sha2, docker-compose.yml, docker-compose.mysql8.yml, docker-compose.mysql91.yml, init.sql, my.cnf, mysql8.cnf, mysql91.cnf)
 ├── Documentation (README.md, INTEGRATION_*.md, LICENSE)
 ├── Build Tools (go.mod, go.sum, Makefile)
 ├── protocol/ (MySQL wire protocol implementation)
 ├── pcapng/ (Network packet captures for analysis)
 └── failed-codings/ (Authentication debugging artifacts)
+
 ```
 
 ## Key Workflows
