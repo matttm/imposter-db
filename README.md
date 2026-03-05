@@ -98,7 +98,7 @@ The proxy will then interactively prompt you to select which schema and table to
 
 Here's a flow chart depicting the architecture of what the proxy does:
 
-<img width="512" height="512" alt="image" src="https://github.com/user-attachments/assets/11d7c52e-93cb-48f5-ad02-15a3fcce05dc" />
+![Architecture diagram](architecture.svg)
 
 ## Authors
 
