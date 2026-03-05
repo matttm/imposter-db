@@ -30,6 +30,7 @@ const (
 	AUTH_SWITCH_REQUEST    byte = 0xFE // Server requests authentication method switch
 	FAST_AUTH_SUCCESS      byte = 0x03
 	AUTH_SWITCH_RESPONSE   byte = 0x00 // Client response to authentication switch
+	PERFORM_FULL_AUTH      byte = 0x04
 )
 
 var authMap map[string]AuthenticationMethod = map[string]AuthenticationMethod{
@@ -54,6 +55,12 @@ func sha256Wrapper(data []byte) []byte {
 //
 //	from doc : It’s important to note that a incompatible change happened in server 8.0.5.  Prior to server 8.0.5 the encryption was done using RSA_PKCS1_PADDING.  With 8.0.5 it is done with RSA_PKCS1_OAEP_PADDING.  This means that if you have implemented support for this authentication scheme for servers prior to 8.0.5 you will need to update your connector to make this change.
 func encryptPassword(pemKey, password, salt []byte) []byte {
+	return encryptPasswordWithRand(pemKey, password, salt, rand.Reader)
+}
+
+// encryptPasswordWithRand allows specifying a random source for deterministic testing
+// MySQL 8.0.5+ uses RSA-OAEP (SHA-1) for full authentication.
+func encryptPasswordWithRand(pemKey, password, salt []byte, randomSource interface{ Read([]byte) (int, error) }) []byte {
 	log.Printf("PEM KEY: %s", pemKey)
 	// Decode PEM to get DER-encoded key
 	block, _ := pem.Decode(pemKey)
@@ -73,7 +80,7 @@ func encryptPassword(pemKey, password, salt []byte) []byte {
 	password = append(password, 0x00)
 	scrambled := xorScramble(password, salt)
 	log.Printf("Scrambled password (hex): %x", scrambled)
-	e, err := rsa.EncryptOAEP(sha1.New(), rand.Reader, rsaPub, scrambled, nil)
+	e, err := rsa.EncryptOAEP(sha1.New(), randomSource, rsaPub, scrambled, nil)
 	log.Printf("Encrypted password len: %d", len(e))
 	if err != nil {
 		log.Print(err)

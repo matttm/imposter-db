@@ -9,10 +9,24 @@ import (
 	"net"
 )
 
-// Function CompleteHandshakeV10
+// CompleteHandshakeV10 performs the MySQL protocol handshake (version 10) between a client and a remote server.
+// It acts as a proxy, relaying handshake packets between the client and server, handling authentication negotiation,
+// and supporting both standard and full authentication flows (including RSA public key exchange if required).
 //
-// Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
+// Parameters:
+//   - f: Pointer to a uint32 to store the client capability flags negotiated during handshake.
+//   - schema: The default database/schema to use for the connection.
+//   - remote: The net.Conn representing the connection to the remote MySQL server.
+//   - client: The net.Conn representing the connection to the client (may be nil for headless mode).
+//   - username: The username to authenticate with.
+//   - password: The password to authenticate with.
+//   - cancel: A context.CancelFunc to allow cancellation of the handshake process.
+//
+// The function panics on unrecoverable errors and logs key handshake steps for debugging.
+// It supports both SSL and non-SSL handshakes, but assumes SSL is not negotiated.
+// The function handles AuthSwitchRequest and full authentication (including public key retrieval and password encryption).
 func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
+	// function writes given []byte  to client if not null
 	clientWrite := func(b []byte) {
 		if client == nil {
 			return
@@ -24,6 +38,10 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		}
 		log.Printf("%d bytes sent to client", n)
 	}
+	// function that reads from clientt if not null
+	//
+	// when null, the function gi rn as arg, is invoked to
+	//  get []byte resembling a response
 	clientRead := func(f func() []byte) []byte {
 		if client == nil {
 			return f()
@@ -41,17 +59,15 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	log.Println("Entering connection phase (without SSL)...")
 	b, _ = ReadPacket(remote)
 	req, _ := DecodeHandshakeRequest(b[4:])
-	log.Printf("request: %#v", req)
+	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
 	log.Println("HandshakeRequest read from server")
 	// got the salt aNd responded with my scramble
-	clientWrite(b) // NOTE: thinking i have to keep client in-the-loop
+	clientWrite(b)
 	// TODO: REFACTOR CLOSURE
 	lazy := func() []byte { return NewHandshakeResponse(f, schema, req, username, password) }
 	b = clientRead(lazy)
-	// NOTE: TRIAL RUN: i think i need to get client fields here
 	if client != nil {
 		_response, _ := DecodeHandshakeResponse(b[4:])
-		log.Printf("response: %#v", _response)
 		*f = _response.ClientFlag
 	}
 	//
@@ -101,13 +117,14 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 			log.Panic("Received FAST_AUTH_SUCCESS followed by non-OK packet")
 		}
 	}
-	if b[5] != 0x04 {
+	if b[5] != PERFORM_FULL_AUTH {
 		log.Panicf("Expecting perform_full_authentication")
 	}
 	// clientWrite(b)
 	log.Println("Requesting server's public key")
 	// since im not doing an ssl -- ask for rsa public key
-	reqKeyPacket := PackPayload([]byte{0x02}, 3)
+	lazy = func() []byte { return PackPayload([]byte{0x02}, 3) }
+	reqKeyPacket := clientRead(lazy)
 	_, err = remote.Write(reqKeyPacket)
 	if err != nil {
 		panic(err)
@@ -115,8 +132,8 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	pem, _ := ReadPacket(remote)
 	pem = pem[4:] // removing header
 	pem = pem[1:] // removing header for AuthMoreData 0x01
-	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
-	e := encryptPassword(pem, []byte(password), nonce)
+	lazy = func() []byte { return encryptPassword(pem, []byte(password), nonce) }
+	e := clientRead(lazy)
 	b = PackPayload(e, 5)
 	_, err = remote.Write(b)
 	if err != nil {
@@ -149,13 +166,20 @@ func NewHandshakeResponse(f *uint32, schema string, req *HandshakeV10Payload, us
 		ClientAttributes:     nil,
 		ZstdCompressionLevel: 0,
 	}
-	log.Printf("response: %#v", res)
 	b, _ := EncodeHandshakeResponse(&res)
 	log.Println("=============== END 'respondToHandshakeReq'")
 	return PackPayload(b.Bytes(), 0x01)
 }
 
-// Method for handling messages when handshake has been done
+// HandleMessage processes a single MySQL protocol message from the client connection.
+// It reads the next packet from the client, determines the command type, and routes the message
+// to the appropriate backend (remote or local database) based on the command and query content.
+// For COM_QUERY commands, it inspects the query to decide whether to route to the local or remote
+// database, depending on whether the query references a spoofed table name. The function handles
+// forwarding packets between the client and the selected backend, including special handling for
+// EOF packets depending on client capabilities. For COM_QUIT, it triggers the provided cancel function.
+// Unused and unknown commands are logged or ignored. Any errors encountered during packet reading
+// or writing will cause the function to panic.
 func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofedTableName string, cancel context.CancelFunc) {
 	// i assume next message is a command
 	packet, err := ReadPacket(client)
@@ -169,6 +193,7 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 	cmd := Command(packet[4])
 	switch cmd {
 	case COM_QUIT:
+		cancel()
 	case COM_SLEEP, COM_INIT_DB, COM_FIELD_LIST, COM_CREATE_DB, COM_DROP_DB, COM_STATISTICS, COM_CONNECT, COM_DEBUG, COM_PING, COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP, COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE, COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE, COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON, COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION, COM_CLONE, COM_SUBSCRIBE_GROUP_REPLICATION_STREAM, COM_END:
 		_, err = remote.Write(packet)
 		if err != nil {
@@ -181,7 +206,7 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 		}
 	case COM_QUERY:
 		var queried net.Conn
-		if DecodeQuery(CLIENT_CAPABILITIES, packet[4:]).Contains(spoofedTableName) {
+		if DecodeQuery(clientFlags, packet[4:]).Contains(spoofedTableName) {
 			fmt.Println("Routing to local")
 			queried = localDb
 		} else {
@@ -202,7 +227,7 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 		} else {
 			// this case is when a client is not using eof deperecated
 			// so in this instance, when doing a query, the server sends 2 EOFs--an intermediate one following
-			// the fieldset and one more following the rpws
+			// the fieldset and one more following the rows
 			//
 			// getting rows
 			packet = ReadPackets(queried, cancel)
@@ -220,7 +245,12 @@ func HandleMessage(clientFlags uint32, client, remote, localDb net.Conn, spoofed
 	return
 }
 
-// Reads a connection until there are no bytes to be read ATM
+// ReadPackets continuously reads packets from the provided net.Conn connection until a timeout,
+// an EOF, or an OK packet is received. It appends each packet's payload to a byte slice and returns
+// the accumulated packets. If a timeout occurs, it returns the packets read so far. If EOF is encountered,
+// it logs the closure, calls the provided cancel function, and returns the packets. Any other error
+// will cause a panic. The function logs the sequence ID of each received packet and logs when an OK
+// packet is received.
 func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 	packets := []byte{}
 	for {
@@ -248,7 +278,11 @@ func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 	}
 }
 
-// ReadPacket reads one mysql packet, by examing the length encodings
+// ReadPacket reads a packet from the given net.Conn according to the MySQL protocol.
+// It first reads the 4-byte packet header to determine the payload size and sequence ID,
+// then reads the payload of the specified size. If the packet indicates an error (ERR_PACKET),
+// it decodes the error packet and panics with the error message. Returns the full packet
+// (header + payload) or an error if reading fails.
 func ReadPacket(c net.Conn) ([]byte, error) {
 	packet := []byte{}
 	h := make([]byte, 4)
@@ -268,7 +302,8 @@ func ReadPacket(c net.Conn) ([]byte, error) {
 	//
 	// just check for error and panic here?
 	if packet[4] == ERR_PACKET {
-		panic("Error occured")
+		e := DecodeErrPacket(0, packet[4:])
+		panic(e.ErrorMessage)
 	}
 	return packet, nil
 }
