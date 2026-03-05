@@ -76,29 +76,35 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	if err != nil {
 		panic(err)
 	}
-	b, _ = ReadPacket(remote)
-	log.Printf("%d bytes read from the server", len(b))
-	if isOkPacket(b) {
-		clientWrite(b)
-		log.Println("Ok packet sent to client")
-		return
-	}
-	// TODO: spend more time on this case
-	// checking for auth switch
-	if b[4] == AUTH_SWITCH_REQUEST {
-		log.Printf("AuthSwitchRequest received")
-		switchRequest := DecodeAuthSwitchRequest(CLIENT_CAPABILITIES, b[4:])
-		hash, err := hashPassword(
-			switchRequest.pluginName,
-			[]byte(switchRequest.pluginData),
-			password,
-		)
-		if err != nil {
-			panic(err)
+	for {
+		b, _ = ReadPacket(remote)
+		log.Printf("%d bytes read from the server", len(b))
+		if isOkPacket(b) {
+			clientWrite(b)
+			log.Println("Ok packet sent to client")
+			return
 		}
-		b = []byte{}
-		b = append(b, EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)}).Bytes()...)
-		clientWrite(PackPayload(b, 3))
+		// TODO: spend more time on this case
+		// checking for auth switch
+		if b[4] == AUTH_SWITCH_REQUEST {
+			log.Printf("AuthSwitchRequest received")
+			switchRequest := DecodeAuthSwitchRequest(CLIENT_CAPABILITIES, b[4:])
+			hash, err := hashPassword(
+				switchRequest.pluginName,
+				[]byte(switchRequest.pluginData),
+				password,
+			)
+			if err != nil {
+				panic(err)
+			}
+			resp := EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)}).Bytes()
+			_, err = remote.Write(PackPayload(resp, b[3]+1))
+			if err != nil {
+				panic(err)
+			}
+			continue
+		}
+		break
 	}
 	// if not ok packet, then Prootocol::AuthMoreData
 	if b[4] != AUTH_MORE_DATA {
@@ -123,23 +129,25 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	// clientWrite(b)
 	log.Println("Requesting server's public key")
 	// since im not doing an ssl -- ask for rsa public key
-	lazy = func() []byte { return PackPayload([]byte{0x02}, 3) }
-	reqKeyPacket := clientRead(lazy)
+	reqKeyPacket := PackPayload([]byte{0x02}, b[3]+1)
 	_, err = remote.Write(reqKeyPacket)
 	if err != nil {
 		panic(err)
 	}
-	pem, _ := ReadPacket(remote)
-	pem = pem[4:] // removing header
-	pem = pem[1:] // removing header for AuthMoreData 0x01
-	lazy = func() []byte { return encryptPassword(pem, []byte(password), nonce) }
-	e := clientRead(lazy)
-	b = PackPayload(e, 5)
+	pemPacket, _ := ReadPacket(remote)
+	pem := pemPacket[4:] // removing header
+	pem = pem[1:]         // removing header for AuthMoreData 0x01
+	e := encryptPassword(pem, []byte(password), nonce)
+	b = PackPayload(e, pemPacket[3]+1)
 	_, err = remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
-	_, _ = ReadPacket(remote)
+	b, _ = ReadPacket(remote)
+	if isOkPacket(b) {
+		clientWrite(b)
+		return
+	}
 	return
 }
 func NewHandshakeResponse(f *uint32, schema string, req *HandshakeV10Payload, username, password string) []byte {
