@@ -5,19 +5,24 @@
 
 set -e
 
-echo "🚀 Starting integration test suite for imposter-db..."
-
+# Compose file can be overridden (e.g., docker-compose.mysql8.yml)
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.yml}
+COMPOSE_CMD=(docker compose -f "$COMPOSE_FILE")
+
+echo "🚀 Starting integration test suite for imposter-db..."
+echo "${YELLOW}📄 Using compose file: ${COMPOSE_FILE}${NC}"
+
 # Function to cleanup on exit
 cleanup() {
     echo ""
     echo "${YELLOW}🧹 Cleaning up...${NC}"
-    docker-compose down -v
+    "${COMPOSE_CMD[@]}" down -v
     echo "${GREEN}✅ Cleanup complete${NC}"
 }
 
@@ -26,7 +31,7 @@ trap cleanup EXIT
 
 # Start docker-compose services
 echo "${YELLOW}📦 Starting Docker containers...${NC}"
-docker compose up -d
+"${COMPOSE_CMD[@]}" up -d
 
 # Wait for containers to be healthy
 echo "${YELLOW}⏳ Waiting for databases to be healthy...${NC}"
@@ -34,8 +39,10 @@ max_wait=60
 elapsed=0
 
 while [ $elapsed -lt $max_wait ]; do
-    local_healthy=$(docker inspect --format='{{.State.Health.Status}}' imposter-local 2>/dev/null || echo "starting")
-    remote_healthy=$(docker inspect --format='{{.State.Health.Status}}' imposter-remote 2>/dev/null || echo "starting")
+    local_id=$("${COMPOSE_CMD[@]}" ps -q localdb 2>/dev/null || true)
+    remote_id=$("${COMPOSE_CMD[@]}" ps -q db 2>/dev/null || true)
+    local_healthy=$(docker inspect --format='{{.State.Health.Status}}' "$local_id" 2>/dev/null || echo "starting")
+    remote_healthy=$(docker inspect --format='{{.State.Health.Status}}' "$remote_id" 2>/dev/null || echo "starting")
     
     if [ "$local_healthy" = "healthy" ] && [ "$remote_healthy" = "healthy" ]; then
         echo "${GREEN}✅ Both databases are healthy!${NC}"
@@ -49,8 +56,8 @@ done
 
 if [ $elapsed -ge $max_wait ]; then
     echo "${RED}❌ Timeout waiting for databases to become healthy${NC}"
-    docker compose ps
-    docker compose logs
+    "${COMPOSE_CMD[@]}" ps
+    "${COMPOSE_CMD[@]}" logs
     exit 1
 fi
 
@@ -85,7 +92,7 @@ if [ $test_result -eq 0 ]; then
 else
     echo "${RED}❌ Integration tests failed${NC}"
     echo "${YELLOW}📋 Docker logs:${NC}"
-    docker compose logs --tail=50
+    "${COMPOSE_CMD[@]}" logs --tail=50
 fi
 
 exit $test_result

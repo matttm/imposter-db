@@ -1,2 +1,3 @@
 [mysqld]
-default_authentication_plugin=caching_sha2_password
+# MySQL 9+ no longer supports default_authentication_plugin.
+# Caching SHA2 remains the default authentication plugin.
