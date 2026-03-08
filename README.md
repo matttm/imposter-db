@@ -7,7 +7,7 @@ This program acts as a proxy database for a remote MySQL server, in which a sing
 Once you specify the table you want to spoof, it will be replicated inside the running Docker container. When you connect to the proxy, you will see all the tables from the remote database, but the spoofed table will be coming from the Docker container. This means you can change this table without affecting other people who are using the remote database.
 
 > [!NOTE]
-> MySQL 9.1 now works with the current Docker test setup and integration tests. Work on broader auth method coverage (`caching_sha2_password`, `sha256_password`) is still in progress; for now, `mysql_native_password` and the fast_auth path are supported.
+> MySQL 9.1 now works with the current Docker test setup and integration tests, including `caching_sha2_password` and `sha256_password`.
 
 > [!NOTE]
 > Verified with MySQL 8 and MySQL 9.1 (see the `docker-compose.mysql8.yml` and `docker-compose.mysql91.yml` setups). If you hit issues on older MySQL versions, please open an issue.
