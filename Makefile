@@ -1,4 +1,4 @@
-.PHONY: help test integration-test unit-test clean docker-up docker-down docker-logs
+.PHONY: help test integration-test integration-test-mysql8 integration-test-mysql91 integration-test-all unit-test clean docker-up docker-down docker-logs
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -18,6 +18,14 @@ unit-test: ## Run unit tests only
 
 integration-test: ## Run integration tests with Docker
 	./run-integration-tests.sh
+
+integration-test-mysql8: ## Run integration tests against MySQL 8
+	COMPOSE_FILE=docker-compose.mysql8.yml ./run-integration-tests.sh
+
+integration-test-mysql91: ## Run integration tests against MySQL 9.1
+	COMPOSE_FILE=docker-compose.mysql91.yml ./run-integration-tests.sh
+
+integration-test-all: integration-test-mysql8 integration-test-mysql91 ## Run integration tests against MySQL 8 and 9.1
 
 integration-test-keep: docker-up ## Run integration tests but keep containers running
 	@echo "⏳ Waiting for databases to be healthy..."

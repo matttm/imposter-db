@@ -6,11 +6,11 @@ This program acts as a proxy database for a remote MySQL server, in which a sing
 
 Once you specify the table you want to spoof, it will be replicated inside the running Docker container. When you connect to the proxy, you will see all the tables from the remote database, but the spoofed table will be coming from the Docker container. This means you can change this table without affecting other people who are using the remote database.
 
-> [!CAUTION]
-> This project works best with MySQL v8 servers. It should work with MySQL v5 servers or clients as well, but please open an issue if you encounter any problems.
+> [!NOTE]
+> MySQL 9.1 now works with the current Docker test setup and integration tests, including `caching_sha2_password` and `sha256_password`.
 
 > [!NOTE]
-> I am working on coding the `caching_sha2_password` and `sha256_password` authentication methods. Currently, only the fast_auth path and `mysql_native_password` work. 
+> Verified with MySQL 8 and MySQL 9.1 (see the `docker-compose.mysql8.yml` and `docker-compose.mysql91.yml` setups). If you hit issues on older MySQL versions, please open an issue.
 
 ## Motivation
 
@@ -25,6 +25,11 @@ To begin, you must have Go and Docker installed.
 If you want to try out the proxy with a dummy remote database first, start the Docker service to launch a local MySQL instance that simulates a remote database:
 ```
 docker compose up
+```
+Optional: use docker compose for a specific MySQL version:
+```
+docker compose -f docker-compose.mysql8.yml up -d
+docker compose -f docker-compose.mysql91.yml up -d
 ```
 
 This sets up two local MySQL instances (one acting as "remote" and one as "local") that you can use to familiarize yourself with the proxy functionality without connecting to a real remote database.
@@ -93,6 +98,60 @@ source .env.local
 ```
 
 The proxy will then interactively prompt you to select which schema and table to spoof (unless you provided the `-schema` and `-table` flags), replicate the table to the local database, and start listening on the configured PROXY_PORT (default: 3308).
+
+## Testing (Makefile Targets)
+
+The Makefile exposes unit and integration test flows. Run `make help` to see descriptions.
+
+Common targets:
+
+- `make test` runs unit tests, then integration tests.
+- `make unit-test` runs unit tests only (`go test -v -run 'Test[^I]' -timeout 30s`).
+- `make integration-test` runs the integration test script. By default it runs against both MySQL 8 and 9.1 (same as `run-integration-tests.sh`).
+- `make integration-test-mysql8` runs integration tests against the MySQL 8 compose file only.
+- `make integration-test-mysql91` runs integration tests against the MySQL 9.1 compose file only.
+- `make integration-test-all` runs MySQL 8 then MySQL 9.1 (explicit chaining).
+- `make integration-test-keep` runs integration tests but keeps containers running for debugging.
+
+Docker utility targets:
+
+- `make docker-up` starts the default Docker compose file (`docker-compose.yml`).
+- `make docker-down` stops and removes containers and volumes.
+- `make docker-logs` tails Docker logs.
+- `make docker-status` shows container status.
+
+## Docker Compose Setups
+
+There are three compose files. Each creates two MySQL containers: `localdb` (local spoofed tables) and `db` (remote source with test data). The remote container is initialized with `init.sql`.
+
+Default (`docker-compose.yml`):
+
+- MySQL image: `mysql:8.0` for both containers.
+- Container names: `imposter-local` and `imposter-remote`.
+- Ports: localdb `3306`, remote `3307`.
+- Config: `my.cnf` for localdb.
+- Volumes: `localdb-data`, `db-data`.
+
+MySQL 8 (`docker-compose.mysql8.yml`):
+
+- MySQL image: `mysql:8.0` for both containers.
+- Container names: `imposter-local-mysql8` and `imposter-remote-mysql8`.
+- Ports: localdb `3306`, remote `3307`.
+- Config: `mysql8.cnf` for localdb.
+- Volumes: `localdb8-data`, `db8-data`.
+
+MySQL 9.1 (`docker-compose.mysql91.yml`):
+
+- MySQL image: `mysql:9.1.0` for both containers.
+- Container names: `imposter-local-mysql91` and `imposter-remote-mysql91`.
+- Ports: localdb `3306`, remote `3307`.
+- Config: `mysql91.cnf` for localdb.
+- Volumes: `localdb91-data`, `db91-data`.
+
+Shared credentials (used by integration tests):
+
+- Remote DB: `ADMIN` / `ADMIN`, database `TEST_DB`, port `3307`.
+- Local DB: `root` / `root`, port `3306`.
 
 ## Architecture
 
