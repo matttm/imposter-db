@@ -91,7 +91,7 @@ docker compose up localdb
 
 This starts only the `localdb` container, which will store the spoofed tables locally while the proxy connects to your actual remote database.
 
-3. **Source the environment file and run the proxy**:
+3. **Configure and source the environment file and run the proxy**:
 ```bash
 source .env.local
 ./imposter-db [-fk] [-schema=NAME] [-table=NAME]
