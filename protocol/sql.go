@@ -1,5 +1,5 @@
 package protocol
-
+import "imposter-db/state"
 import (
 	"context"
 	"encoding/binary"
@@ -8,7 +8,12 @@ import (
 	"log"
 	"net"
 )
-
+func CompleteHandshake(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) {
+	state := state.EntryPoint {}
+	for !state.IsComplete() {
+		state = state.Handle(f, schema, remote, client, username, password, cancel)
+	}
+}
 // Function CompleteHandshakeV10
 //
 // Receives packets from `remote` conn and calls the respective client funcs for a simple mysql handshake
