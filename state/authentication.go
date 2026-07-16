@@ -16,7 +16,10 @@ func (a *AuthenticationState) IsComplete() bool {
 }
 
 func (a *AuthenticationState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
-	// TODO: Receive and validate authentication response from client
+	// TODO: Validate authentication data from HandshakeResponse
+	// If successful, go to ReadyState; if need more data, go to AuthMoreDataState
 	a.authenticated = true
-	return &CommandState{}
+	// For single-step auth, transition to ReadyState
+	// For multi-step auth, transition to AuthMoreDataState
+	return &ReadyState{}
 }

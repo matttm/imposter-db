@@ -17,6 +17,7 @@ func (r *ResultState) IsComplete() bool {
 
 func (r *ResultState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
 	// TODO: Send query results to client
+	// Results can be from CommandPhase packets (OK_Packet, ERR_Packet, ResultSet, etc.)
 	r.resultSent = true
 	// Return to CommandState to wait for the next command
 	return &CommandState{}

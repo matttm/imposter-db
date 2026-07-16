@@ -18,5 +18,6 @@ func (h *HandshakeState) IsComplete() bool {
 func (h *HandshakeState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
 	// TODO: Send handshake packet to client from remote connection
 	h.initialized = true
-	return &AuthenticationState{}
+	// Client may send SSLRequest or go directly to HandshakeResponse
+	return &SSLRequestState{}
 }

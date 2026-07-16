@@ -17,6 +17,7 @@ func (asr *AuthSwitchResponseState) IsComplete() bool {
 
 func (asr *AuthSwitchResponseState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
 	// TODO: Receive and validate authentication switch response from client
+	// May need additional exchanges (AuthMoreDataState) or go directly to ReadyState
 	asr.responseReceived = true
-	return &CommandState{}
+	return &ReadyState{}
 }
