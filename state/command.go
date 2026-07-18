@@ -12,12 +12,12 @@ type CommandState struct {
 }
 
 func (c *CommandState) IsComplete() bool {
-	return c.commandReceived
+	// CommandState is not an exit state within handshake phase
+	return false
 }
 
-func (c *CommandState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
+func (c *CommandState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) (State, error) {
 	// TODO: Receive and parse command from client
 	// Route command to appropriate handler (query, ping, etc.)
-	c.commandReceived = true
-	return &ResultState{}
+	return &ResultState{}, nil
 }

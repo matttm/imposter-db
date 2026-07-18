@@ -12,13 +12,13 @@ type ResultState struct {
 }
 
 func (r *ResultState) IsComplete() bool {
-	return r.resultSent
+	// ResultState is not an exit state
+	return false
 }
 
-func (r *ResultState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
+func (r *ResultState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) (State, error) {
 	// TODO: Send query results to client
 	// Results can be from CommandPhase packets (OK_Packet, ERR_Packet, ResultSet, etc.)
-	r.resultSent = true
 	// Return to CommandState to wait for the next command
-	return &CommandState{}
+	return &CommandState{}, nil
 }

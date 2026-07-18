@@ -12,12 +12,12 @@ type ReadyState struct {
 }
 
 func (r *ReadyState) IsComplete() bool {
-	return r.initialized
+	// ReadyState is an exit point - authentication is complete
+	return true
 }
 
-func (r *ReadyState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) State {
+func (r *ReadyState) Handle(f *uint32, schema string, remote net.Conn, client net.Conn, username, password string, cancel context.CancelFunc) (State, error) {
 	// TODO: Send OK_Packet to confirm successful authentication
-	r.initialized = true
 	// Transition to CommandState to handle incoming commands
-	return &CommandState{}
+	return &CommandState{}, nil
 }
