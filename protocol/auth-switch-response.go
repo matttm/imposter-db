@@ -6,13 +6,13 @@ import (
 )
 
 type AuthSwitchResponse struct {
-	data string
+	AuthResponse string
 }
 
 func EncodeAuthSwitchResponse(res *AuthSwitchResponse) *bytes.Buffer {
 	b := []byte{}
 	buffer := bytes.NewBuffer(b)
-	if err := binary.Write(buffer, binary.LittleEndian, []byte(res.data)); err != nil {
+	if err := binary.Write(buffer, binary.LittleEndian, []byte(res.AuthResponse)); err != nil {
 		panic(err)
 	}
 	return buffer

@@ -54,7 +54,7 @@ func sha256Wrapper(data []byte) []byte {
 // doc: https://dev.mysql.com/blog-archive/preparing-your-community-connector-for-mysql-8-part-2-sha256/
 //
 //	from doc : It’s important to note that a incompatible change happened in server 8.0.5.  Prior to server 8.0.5 the encryption was done using RSA_PKCS1_PADDING.  With 8.0.5 it is done with RSA_PKCS1_OAEP_PADDING.  This means that if you have implemented support for this authentication scheme for servers prior to 8.0.5 you will need to update your connector to make this change.
-func encryptPassword(pemKey, password, salt []byte) []byte {
+func EncryptPassword(pemKey, password, salt []byte) []byte {
 	return encryptPasswordWithRand(pemKey, password, salt, rand.Reader)
 }
 
@@ -90,7 +90,7 @@ func encryptPasswordWithRand(pemKey, password, salt []byte, randomSource interfa
 }
 
 // TODO: refactor method to be an enum
-func hashPassword(method string, salt []byte, password string) ([]byte, error) {
+func HashPassword(method string, salt []byte, password string) ([]byte, error) {
 	if isNonASCIIorEmpty(method) {
 		return []byte{}, fmt.Errorf("Authentication method is undecipherable")
 	}

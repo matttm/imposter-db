@@ -1,5 +1,4 @@
 package protocol
-
 import (
 	"context"
 	"encoding/binary"
@@ -8,6 +7,7 @@ import (
 	"log"
 	"net"
 )
+// Function CompleteHandshakeV10
 
 // CompleteHandshakeV10 performs the MySQL protocol handshake (version 10) between a client and a remote server.
 // It acts as a proxy, relaying handshake packets between the client and server, handling authentication negotiation,
@@ -79,7 +79,7 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	for {
 		b, _ = ReadPacket(remote)
 		log.Printf("%d bytes read from the server", len(b))
-		if isOkPacket(b) {
+		if IsOkPacket(b) {
 			clientWrite(b)
 			log.Println("Ok packet sent to client")
 			return
@@ -89,15 +89,15 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		if b[4] == AUTH_SWITCH_REQUEST {
 			log.Printf("AuthSwitchRequest received")
 			switchRequest := DecodeAuthSwitchRequest(CLIENT_CAPABILITIES, b[4:])
-			hash, err := hashPassword(
-				switchRequest.pluginName,
-				[]byte(switchRequest.pluginData),
+			hash, err := HashPassword(
+				switchRequest.PluginName,
+				[]byte(switchRequest.PluginData),
 				password,
 			)
 			if err != nil {
 				panic(err)
 			}
-			resp := EncodeAuthSwitchResponse(&AuthSwitchResponse{data: string(hash)}).Bytes()
+			resp := EncodeAuthSwitchResponse(&AuthSwitchResponse{AuthResponse: string(hash)}).Bytes()
 			_, err = remote.Write(PackPayload(resp, b[3]+1))
 			if err != nil {
 				panic(err)
@@ -115,7 +115,7 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 		// this is FAST_AUTH_SUCCESS
 		log.Println("FAST_AUTH_SUCCESS received")
 		b, _ = ReadPacket(remote)
-		if isOkPacket(b) {
+		if IsOkPacket(b) {
 			log.Println("OK packet received")
 			clientWrite(b)
 			return
@@ -137,14 +137,14 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 	pemPacket, _ := ReadPacket(remote)
 	pem := pemPacket[4:] // removing header
 	pem = pem[1:]         // removing header for AuthMoreData 0x01
-	e := encryptPassword(pem, []byte(password), nonce)
+	e := EncryptPassword(pem, []byte(password), nonce)
 	b = PackPayload(e, pemPacket[3]+1)
 	_, err = remote.Write(b)
 	if err != nil {
 		panic(err)
 	}
 	b, _ = ReadPacket(remote)
-	if isOkPacket(b) {
+	if IsOkPacket(b) {
 		clientWrite(b)
 		return
 	}
@@ -153,7 +153,7 @@ func CompleteHandshakeV10(f *uint32, schema string, remote net.Conn, client net.
 func NewHandshakeResponse(f *uint32, schema string, req *HandshakeV10Payload, username, password string) []byte {
 	log.Println("=============== START 'respondToHandshakeReq'")
 	nonce := append(req.AuthPluginDataPart1[:], req.AuthPluginDataPart2...)
-	hashed, err := hashPassword(
+	hashed, err := HashPassword(
 		req.AuthPluginName,
 		nonce,
 		password,
@@ -279,7 +279,7 @@ func ReadPackets(c net.Conn, cancel context.CancelFunc) []byte {
 		}
 		log.Printf("receiving seq id %d", payload[3])
 		packets = append(packets, payload...)
-		if isOkPacket(payload) {
+		if IsOkPacket(payload) {
 			log.Println("Received an OK packet")
 			return packets
 		}
