@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"slices"
-	"strings"
 
 	"log"
 	"net"
@@ -39,7 +38,6 @@ func main() {
 	s := selection{}
 	schemaFlag := flag.String("schema", "", "a string of the schema name")
 	tableFlag := flag.String("table", "", "a string of the table name")
-	fkFlag := flag.Bool("fk", false, "a boolean indicating whether foreign tables of the chosen table should be created")
 	flag.Parse()
 
 	remoteDb := InitRemoteConnection()
@@ -84,63 +82,44 @@ func main() {
 	}
 	log.Printf("You chose %s", s.tables[0])
 
+	// NEW FLOW: Setup Federated tables
+	// Create fresh local database
 	ReplaceDB(localDb, s.databases[0])
 
-	var foreignTables [][2]string
-	if *fkFlag == false {
-		// create all referencing tables in localDb
-		// foreignTables = QueryForTwoColumns(remoteDb, FETCH_GRAPH_EDGES(s.databases[0], s.tables[0]))
-		// just thid table
-		foreignTables = [][2]string{{"", s.tables[0]}}
-	} else {
-		// copy all child tables
-		foreignTables = QueryForTwoColumns(remoteDb, FETCH_PARENT_GRAPH_EDGES(s.databases[0], s.tables[0]))
+	selectedTable := s.tables[0]
+	log.Printf("\n=== Setting up Federated Architecture ===")
+	log.Printf("Selected table for local modifications: %s", selectedTable)
+
+	// Step 1: Create the selected table locally (non-federated)
+	log.Println("\n--- Creating local table (non-federated) ---")
+	selectedTableCreateCmd := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], selectedTable))[0][1]
+	err := CreateLocalTableSchema(localDb, selectedTableCreateCmd)
+	if err != nil {
+		log.Fatalf("Failed to create local table: %v", err)
 	}
-	// size check
-	log.Printf("Starting topological sort: %v\n", foreignTables)
-	// getting heirarchical ordering
-	inverseTopologicalOrdering, _ := topologicalSort(foreignTables)
-	// TODO: move this code to manip service
-	var stringified []string
-	for _, v := range inverseTopologicalOrdering {
-		stringified = append(stringified, fmt.Sprintf("'%s'", v))
-	}
-	topoString := strings.Join(stringified, ",")
-	inParam := fmt.Sprintf("(%s)", topoString)
-	estimated := SelectOneDynamic(remoteDb, FETCH_TABLES_SIZES(s.databases[0], inParam))
-	MAX := 0.05
-	if *estimated > MAX {
-		log.Panicf("Error: total tables size %f GB exceeds %f GB", *estimated, MAX)
-		// log.Printf("Falling back to ignoring foreign keys")
-	} else {
-		log.Printf("Estimated replication size: %f", *estimated)
-		s.tables = []string{}
-		for _, tableName := range inverseTopologicalOrdering {
-			s.tables = append(s.tables, tableName)
+	log.Printf("✓ Local table created: %s", selectedTable)
+
+	// Step 2: Create Federated tables for all other tables
+	log.Println("\n--- Creating Federated tables for other tables ---")
+	allTables := QueryFor(remoteDb, SHOW_TABLE_QUERY(s.databases[0]))
+	for _, table := range allTables {
+		if table == selectedTable {
+			continue // Skip the selected table, it's already created
+		}
+		log.Printf("Creating Federated table: %s", table)
+		err := CreateFederatedTable(localDb, table, s.databases[0], s.databases[0])
+		if err != nil {
+			log.Printf("Warning: Failed to create federated table %s: %v", table, err)
+			// Continue with other tables even if one fails
 		}
 	}
 
-	// appenc foreign tables to table slice
-	for _, table := range s.tables {
+	log.Printf("\n=== Federated Architecture Setup Complete ===")
+	log.Printf("• Local table (editable): %s.%s", s.databases[0], selectedTable)
+	log.Printf("• Federated tables (read from remote): %d tables", len(allTables)-1)
 
-		// if table is empty, skip
-		if len(table) == 0 {
-			continue
-		}
-		log.Printf("Replicating %s", table)
-		// get data to create template
-		createCommand := QueryForTwoColumns(remoteDb, SHOW_CREATE(s.databases[0], table))[0][1]
-		columns := QueryForTwoColumns(remoteDb, SELECT_COLUMNS(table))
-
-		log.Println(createCommand)
-		log.Println(columns)
-		// form the select query that results in inserts
-		insertTemplate := CreateSelectInsertionFromSchema(s.databases[0], table, columns)
-		// get an insert for each row
-		inserts := QueryFor(remoteDb, insertTemplate)
-		Populate(localDb, s.databases[0], createCommand, inserts)
-	}
-	// close db as were going to open it again in raw tcp form
+	// Close connections
+	remoteDb.Close()
 	localDb.Close()
 
 	// start proxying

@@ -108,4 +108,35 @@ var (
 	USE_DB = func(dbName string) string {
 		return fmt.Sprintf("USE %s", dbName)
 	}
+	// FEDERATED_ENGINE_CREATE creates a Federated table pointing to a remote server
+	// Parameters:
+	//   - localDbName: The local database name for the federated table
+	//   - tableName: The table name (same in local and remote)
+	//   - remoteUser, remotePass: Credentials for remote server connection
+	//   - remoteHost, remotePort: Remote server connection details
+	//   - remoteDbName: Remote database name
+	FEDERATED_ENGINE_CREATE = func(localDbName, tableName, remoteUser, remotePass, remoteHost, remotePort, remoteDbName string) string {
+		// Connection string for MySQL Federated tables
+		connectionString := fmt.Sprintf("'%s'@'%s:%s'", remoteDbName, remoteHost, remotePort)
+		return fmt.Sprintf(`
+			CREATE TABLE %s.%s (
+				LIKE %s.%s
+			) ENGINE=FEDERATED
+			CONNECTION=%s
+			USER='%s'
+			PASSWORD='%s'`,
+			localDbName, tableName,
+			remoteDbName, tableName,
+			connectionString,
+			remoteUser, remotePass)
+	}
+	// GET_ALL_TABLES_EXCEPT returns all tables in a database except the specified one
+	GET_ALL_TABLES_EXCEPT = func(schema, excludeTable string) string {
+		return fmt.Sprintf(`
+			SELECT TABLE_NAME
+			FROM INFORMATION_SCHEMA.TABLES 
+			WHERE TABLE_TYPE = 'BASE TABLE' 
+			AND TABLE_SCHEMA = '%s'
+			AND TABLE_NAME != '%s';`, schema, excludeTable)
+	}
 )

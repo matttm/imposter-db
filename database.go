@@ -190,3 +190,49 @@ func Populate(db *sql.DB, dbName, createQuery string, inserts []string) {
 		}
 	}
 }
+
+// CreateLocalTableSchema creates a table locally with just the schema (no data)
+// using the same CREATE TABLE definition from the remote database.
+// This is used for the selected table that will be editable locally.
+//
+// Parameters:
+//   - db:          The local database connection.
+//   - createQuery: The SQL CREATE TABLE statement from the remote database.
+func CreateLocalTableSchema(db *sql.DB, createQuery string) error {
+	log.Printf("Creating local table schema: %s\n", createQuery)
+	_, err := db.Exec(createQuery)
+	if err != nil {
+		return fmt.Errorf("error creating local table schema: %w", err)
+	}
+	return nil
+}
+
+// CreateFederatedTable creates a Federated table in the local database that points to the remote server.
+// This allows querying remote tables transparently through the local MySQL instance.
+//
+// Parameters:
+//   - db:           The local database connection.
+//   - tableName:    The name of the table to create as Federated.
+//   - localDbName:  The local database name.
+//   - remoteDbName: The remote database name.
+func CreateFederatedTable(db *sql.DB, tableName, localDbName, remoteDbName string) error {
+	federatedQuery := fmt.Sprintf(`
+		CREATE TABLE %s.%s (
+			LIKE %s.%s
+		) ENGINE=FEDERATED
+		CONNECTION='mysql://%s:%s@%s:%s/%s/%s'`,
+		localDbName, tableName,
+		remoteDbName, tableName,
+		remoteUser, remotePass,
+		remoteHost, remotePort,
+		remoteDbName, tableName,
+	)
+
+	log.Printf("Creating Federated table: %s.%s\n", localDbName, tableName)
+	_, err := db.Exec(federatedQuery)
+	if err != nil {
+		return fmt.Errorf("error creating federated table %s: %w", tableName, err)
+	}
+	log.Printf("✓ Federated table created: %s.%s\n", localDbName, tableName)
+	return nil
+}
